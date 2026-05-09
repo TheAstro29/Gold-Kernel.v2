@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoldKernel (GK) | Smart Mobile System</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Animation พื้นหลังเคลื่อนไหว */
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Animation ไอคอนเต้นแบบนุ่มนวล */
+        @keyframes logoBounce {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-20px) scale(1.1); }
+        }
+
+        /* Animation ตัวหนังสือค่อยๆ ปรากฏ */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        #splash-screen {
+            position: fixed;
+            inset: 0;
+            /* ไล่เฉดสีชมพู-ส้ม ให้ดูมีมิติ */
+            background: linear-gradient(-45deg, #FF8AAB, #FF5C8D, #FFB0CD, #FF8AAB);
+            background-size: 400% 400%;
+            animation: gradientBG 10s ease infinite;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .splash-logo {
+            font-size: 100px;
+            animation: logoBounce 2s ease-in-out infinite;
+            filter: drop-shadow(0 10px 15px rgba(0,0,0,0.2));
+        }
+
+        .splash-title {
+            margin: 15px 0 5px 0;
+            font-size: 40px;
+            font-weight: 600;
+            letter-spacing: 3px;
+            animation: fadeInUp 1s ease-out;
+        }
+
+        .splash-sub {
+            font-size: 16px;
+            opacity: 0.9;
+            font-weight: 300;
+            animation: fadeInUp 1.2s ease-out;
+        }
+
+        .loader-bar {
+            margin-top: 40px;
+            width: 150px;
+            height: 4px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .loader-progress {
+            position: absolute;
+            width: 40%;
+            height: 100%;
+            background: white;
+            border-radius: 10px;
+            animation: loaderMove 1.5s infinite ease-in-out;
+        }
+
+        @keyframes loaderMove {
+            0% { left: -40%; }
+            100% { left: 100%; }
+        }
+
+        .switch { position: relative; display: inline-block; width: 44px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: var(--pink); }
+        input:checked + .slider:before { transform: translateX(22px); }        
+
+        :root {
+            --pink: #FF8AAB; --yellow: #FDD835; --blue: #00B0FF;
+            --bg: #F0F2F5; --card: #FFFFFF; --sidebar-w: 240px; --sidebar-collapsed: 70px;
+        }
+        * { box-sizing: border-box; transition: all 0.2s ease-in-out; }
+        body { font-family: 'Sarabun', sans-serif; background: var(--bg); margin: 0; overflow-x: hidden; }
+        .sidebar {
+            width: 280px;
+            height: 100vh;
+            background: white;
+            position: fixed;
+            top: 0;
+            left: -280px;
+            z-index: 1400; /* อยู่เหนือ Menu Trigger เวลาเปิด */
+            display: flex;
+            flex-direction: column;
+            box-shadow: 10px 0 25px rgba(0,0,0,0.15);
+            transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .sidebar.active { left: 0; }
+        .sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); display: none; z-index: 1150; }
+        .sidebar-overlay.active { display: block; }
+        .main {
+            margin-left: 0;
+            padding: 10px;
+            width: 100%;
+            min-height: 100vh;
+            padding-top: 5px; /* ลดระยะด้านบนลง */
+        }
+        .menu-trigger {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            width: 40px;
+            height: 40px;
+            background: var(--pink);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            z-index: 1300; /* อยู่เหนือทุกอย่าง */
+            box-shadow: 0 4px 12px rgba(255, 138, 171, 0.5);
+            border: none;
+            cursor: pointer;
+        }        
+        .top-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            background: white;
+            padding: 10px 15px 10px 65px; /* เพิ่ม Padding ซ้ายเป็น 65px เพื่อหลบเมนูวงกลม */
+            border-radius: 12px;
+            border: 1px solid #edf2f7;
+            min-height: 60px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .header-title h2 { margin: 0; font-size: 1.1rem; font-weight: 700; color: #1a202c; }
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 15px; }
+        @media (min-width: 768px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } }
+        .stat-card { background: white; border-radius: 12px; padding: 12px; border-left: 4px solid var(--pink); box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .stat-label { font-size: 11px; color: #718096; font-weight: 600; text-transform: uppercase; }
+        .stat-value { font-size: 18px; font-weight: 700; color: #2d3748; margin: 4px 0; }
+        .stat-sub { font-size: 11px; font-weight: 600; }
+        .db-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        @media (min-width: 1024px) { .db-grid { grid-template-columns: 1fr 1fr; } }
+        .card { width: 100%; background: white; border-radius: 12px; padding: 15px; border: 1px solid #edf2f7; min-height: 320px; display: flex; flex-direction: column; }
+        .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid #edf2f7; background: white; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { background: #f8fafc; padding: 10px; font-size: 11px; color: #a0aec0; text-align: left; }
+        td { padding: 12px 10px; font-size: 13px; border-bottom: 1px solid #edf2f7; }
+        .btn-primary { background: var(--blue); color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; }
+        input, select { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 14px; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: none; justify-content: center; align-items: flex-end; z-index: 1000; }
+        .modal-content { background: white; width: 100%; max-height: 90vh; overflow-y: auto; border-radius: 20px 20px 0 0; padding: 25px; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @media (min-width: 1024px) { .modal { align-items: center; } .modal-content { border-radius: 12px; max-width: 450px; } }
+    </style>
+</head>
+<body>
+    <div id="splash-screen">
+        <div class="splash-logo">🌽</div>
+        <h1 class="splash-title">GoldKernel</h1>
+        <p class="splash-sub">ธนกรการเกษตร 99</p>
+        
+        <div class="loader-bar">
+            <div class="loader-progress"></div>
+        </div>
+        
+        <div style="margin-top: 20px; font-size: 12px; letter-spacing: 1px; opacity: 0.7;">
+            LOADING SYSTEM...
+        </div>
+    </div>
+    <button class="menu-trigger" onclick="toggleSidebar(true)">☰</button>
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar(false)"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div style="height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center; background: var(--pink); color: white; text-align: center; padding: 20px;">
+            <div style="font-size: 45px; margin-bottom: 5px;">🌽</div>
+            <div style="font-weight: 600; font-size: 28px; line-height: 1.2; letter-spacing: 0.5px;">GoldKernel</div>
+            <div style="font-size: 14px; opacity: 0.95; margin-top: 5px;">ธนกรการเกษตร 99</div>
+        </div>
+        
+        <div class="nav-item active" onclick="switchPage('dashboard')" style="padding: 15px 25px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #f0f2f5;">
+            <span style="font-size: 20px;">📊</span><span class="nav-text" style="font-weight: 600; color: #4a5568;">แดชบอร์ด</span>
+        </div>
+        <div class="nav-item" onclick="switchPage('report')" style="padding: 15px 25px; display: flex; align-items: center; gap: 12px; cursor: pointer; border-bottom: 1px solid #f0f2f5;">
+            <span style="font-size: 20px;">📜</span><span class="nav-text" style="font-weight: 600; color: #4a5568;">เอกสารซื้อขาย</span>
+        </div>
+
+        <div style="margin-top: auto; padding: 20px; font-size: 11px; color: #a0aec0; text-align: center; border-top: 1px solid #f0f2f5;">
+            Smart Mobile System v2.0
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="top-header">
+            <div class="header-title">
+                <h2 id="page-title" style="margin:0; font-size: 1.2rem;">แดชบอร์ด</h2>
+                <div style="font-size: 10px; color: #a0aec0; letter-spacing: 0.5px;">GOLD KERNEL SYSTEM</div>
+            </div>
+            <button class="btn-primary" onclick="toggleModal(true)" style="padding: 8px 15px; font-size: 13px;">
+                <span class="desktop-text">+ เพิ่มรายการ</span>
+                <span class="mobile-icon">+</span>
+            </button>
+        </div>
+
+    <div id="dashboard-view">
+        <div class="stats-grid">
+            <div class="stat-card" style="border-left-color: var(--pink);">
+                <div class="stat-label">รับซื้อวันนี้</div>
+                <div class="stat-value"><span id="stat-day-count">0</span> <small>รายการ</small></div>
+                <div class="stat-sub" style="color: var(--pink);">ความชื้นเฉลี่ย: <span id="stat-day-avg">0</span>%</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--yellow);">
+                <div class="stat-label">สัปดาห์นี้</div>
+                <div class="stat-value"><span id="stat-week-count">0</span> <small>รายการ</small></div>
+                <div class="stat-sub" style="color: #fcc02e;">รวม 7 วันล่าสุด</div>
+            </div>
+            <div class="stat-card" style="border-left-color: var(--blue); grid-column: span 2;">
+                <div class="stat-label">สถิติรวมทั้งหมด</div>
+                <div class="stat-value"><span id="stat-total-count">0</span> <small>รายการ</small></div>
+                <div class="stat-sub" style="color: var(--blue);">จำนวนลูกค้าทั้งหมดในระบบ</div>
+            </div>
+        </div>
+
+        <div class="db-grid">
+            <div class="card">
+                <div class="card-header" style="margin-bottom: 10px; font-weight: 600;">⚖️ ปริมาณน้ำหนัก (ตัน)</div>
+                <div style="height: 200px;"><canvas id="weightChart"></canvas></div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="card-header" style="margin: 0; font-weight: 600;">💰 ยอดเงินรับซื้อ (บาท)</div>
+                    <select id="filterMoney" onchange="updateCharts()" style="width: auto; padding: 4px 8px; margin: 0; font-size: 12px; border-radius: 6px;">
+                        <option value="week">สัปดาห์นี้</option>
+                        <option value="month">เดือนนี้</option>
+                        <option value="year">ปีนี้</option>
+                    </select>
+                </div>
+                <div style="height: 200px;"><canvas id="moneyChart"></canvas></div>
+            </div>
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="card-header" style="margin: 0; font-weight: 600;">🚛 จำนวนรถพ่วงรับซื้อ</div>
+                    <select id="filterTrailer" onchange="updateCharts()" style="width: auto; padding: 4px 8px; margin: 0; font-size: 12px; border-radius: 6px;">
+                        <option value="week">สัปดาห์นี้</option>
+                        <option value="month">เดือนนี้</option>
+                        <option value="year">ปีนี้</option>
+                    </select>
+                </div>
+                <div style="height: 200px;"><canvas id="trailerChart"></canvas></div>
+            </div>
+
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <div class="card-header" style="margin: 0; font-weight: 600;">💰 ราคาเฉลี่ย (บาท/ตัน)</div>
+                    <select id="filterPrice" onchange="updateCharts()" style="width: auto; padding: 4px 8px; margin: 0; font-size: 12px; border-radius: 6px;">
+                        <option value="week">สัปดาห์นี้</option>
+                        <option value="month">เดือนนี้</option>
+                        <option value="year">ปีนี้</option>
+                    </select>
+                </div>
+                <div style="height: 200px;"><canvas id="priceChart"></canvas></div>
+            </div>            
+        </div>
+    </div> <div id="report-view" style="display: none; padding-top: 10px;">
+        <div class="card" style="margin-bottom: 15px; min-height: auto;">
+            <input type="text" id="searchCustomer" placeholder="🔍 ค้นหาชื่อลูกค้า..." onkeyup="renderDocumentList()" style="margin-bottom: 10px;">
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button id="btnFilterToday" onclick="setReportFilter('today')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid var(--pink); background: var(--pink); color: white; cursor: pointer; font-size: 13px;">เฉพาะวันนี้</button>
+                <button id="btnFilterAll" onclick="setReportFilter('all')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white; color: #666; cursor: pointer; font-size: 13px;">ทั้งหมด</button>
+            </div>
+
+            <div id="customerSummary" class="card" style="display: none; background: #fff5f7; border: 1px solid var(--pink); margin-bottom: 15px; min-height: auto;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px;">
+                    <h4 style="margin:0; color: var(--pink);">📊 สรุปรายการ: <span id="summaryNameDisplay"></span></h4>
+                    <button onclick="copySummaryText()" style="background: #25D366; color: white; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-size: 12px;">🟢 คัดลอกส่ง Line</button>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div style="background: white; padding: 10px; border-radius: 8px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);">
+                        <small style="color:#718096">จำนวนพ่วง</small><br>
+                        <b id="summaryCountDisplay" style="font-size: 18px;">0</b>
+                    </div>
+                    <div style="background: white; padding: 10px; border-radius: 8px; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);">
+                        <small style="color:#718096">ความชื้นสูงสุด</small><br>
+                        <b id="summaryMaxMoistDisplay" style="font-size: 18px;">0%</b>
+                    </div>
+                    <div style="background: white; padding: 10px; border-radius: 8px; grid-column: span 2; box-shadow: inset 0 0 5px rgba(0,0,0,0.05);">
+                        <small style="color:#718096">ราคาสูงสุดวันนี้</small><br>
+                        <b id="summaryMaxPriceDisplay" style="font-size: 18px; color: var(--blue);">฿0</b>
+                        <div style="font-size: 11px; color: #a0aec0;">(ที่ความชื้น <span id="summaryMoistAtMaxPrice">0</span>%)</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ลำดับ</th>
+                            <th>ว/ช</th>
+                            <th>ลูกค้า</th>
+                            <th>ทะเบียน</th>
+                            <th>น้ำหนัก(ตัน)</th>
+                            <th>ชื้น</th>
+                            <th>บาท/ตัน</th>
+                            <th>พิมพ์</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentListBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="entryModal" onclick="toggleModal(false)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <h3 style="margin:0 0 15px 0;">บันทึกรายการใหม่</h3>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; padding: 10px; background: #f8fafc; border-radius: 8px; border: 1px solid #eee;">
+                <span style="font-size: 13px; font-weight: 600; color: #4a5568;">🚛 บันทึกทะเบียนและน้ำหนัก</span>
+                <label class="switch">
+                    <input type="checkbox" id="enableTruck" onchange="toggleTruckInput()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <input type="text" id="mCust" placeholder="ชื่อลูกค้า">
+            
+            <div id="truckSection" style="display: none; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input type="text" id="mTruck" placeholder="ทะเบียนรถ">
+                <input type="number" id="mWeight" placeholder="น้ำหนัก (ตัน)">
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <input type="number" id="mMoist" placeholder="ความชื้น %">
+                <input type="number" id="mPrice" placeholder="ราคา/ตัน">
+            </div>
+            
+            <select id="mChannel">
+                <option value="หน้าบ้าน">หน้าบ้าน (Walk-in)</option>
+                <option value="ปั้ว">ปั้ว (Order)</option>
+            </select>
+            <button class="btn-primary" style="width:100%; margin-top:20px; padding:15px;" onclick="saveData()">บันทึกข้อมูล</button>
+        </div>
+    </div>
+
+    <div id="captureArea" style="position:fixed; left:-9999px; top:0; background:white; padding:25px; width:350px; font-family:'Sarabun',sans-serif;">
+        <div style="text-align:center; border-bottom:2px solid #333; padding-bottom:10px; margin-bottom:15px;">
+            <h2 style="margin:0; color:#1a202c;">ธนกรการเกษตร 99</h2>
+            <span style="font-size:14px; color:#666;">สรุปรายการซื้อขาย GoldKernel</span>
+        </div>
+        <div id="capContent"></div>
+    </div>
+
+    <script>
+        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxSncQQ10PIkR7KoM_KOvrlgRUlPHHMapk-gZj6fUC4tSI_QmBCjNA6i9978s1gWs7kWw/exec";
+        let db = [];
+        let charts = {};
+
+        // UI Management
+        function toggleModal(show) { document.getElementById('entryModal').style.display = show ? 'flex' : 'none'; }
+        function toggleSidebar(show) {
+            document.getElementById('sidebar').classList.toggle('active', show);
+            document.getElementById('sidebarOverlay').classList.toggle('active', show);
+        }
+
+        function switchPage(page) {
+            const isDash = (page === 'dashboard');
+            // เปลี่ยนชื่อหัวข้อหน้าจอ
+            const pageTitle = document.getElementById('page-title');
+            if (pageTitle) pageTitle.innerText = isDash ? 'แดชบอร์ด' : 'เอกสารซื้อขาย';
+            
+            // สลับหน้าจอ
+            document.getElementById('dashboard-view').style.display = isDash ? 'block' : 'none';
+            document.getElementById('report-view').style.display = isDash ? 'none' : 'block';
+            
+            // อัปเดตสีปุ่มเมนูที่ถูกเลือก
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const activeNav = document.querySelector(`.nav-item[onclick*="${page}"]`);
+            if (activeNav) activeNav.classList.add('active');
+
+            // โหลดข้อมูลใหม่
+            if (isDash) {
+                if (typeof updateDashboard === 'function') updateDashboard();
+            } else {
+                if (typeof renderDocumentList === 'function') renderDocumentList();
+            }
+
+            // ✅ จุดที่แก้: สั่งปิดเมนู Sidebar ทันทีที่กดเปลี่ยนหน้า
+            if (typeof toggleSidebar === 'function') toggleSidebar(false);
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Data Management
+        function updateDashboard() {
+            updateStats();
+            updateCharts();
+            renderRecentDashboard();
+        }
+
+        function updateStats() {
+            const todayStr = new Date().toLocaleDateString('th-TH');
+            
+            // 1. ดึงเฉพาะข้อมูลของวันนี้
+            const todayData = db.filter(item => {
+                return new Date(item.date).toLocaleDateString('th-TH') === todayStr;
+            });
+
+            // 2. ความชื้นเฉลี่ยต่อวัน
+            const todayAvgMoist = todayData.length > 0 
+                ? (todayData.reduce((sum, item) => sum + item.moist, 0) / todayData.length).toFixed(1) 
+                : 0;
+
+            // (ส่วนอื่นๆ คงไว้คล้ายเดิม หรือปรับให้สอดคล้องกัน)
+            const totalCount = db.length;
+            const dayCount = todayData.length; 
+
+            document.getElementById('stat-day-count').innerText = dayCount.toLocaleString();
+            document.getElementById('stat-day-avg').innerText = todayAvgMoist; // อัปเดตความชื้นเฉลี่ยวันนี้
+            document.getElementById('stat-total-count').innerText = totalCount.toLocaleString();
+        }
+
+        function updateCharts() {
+            if (!charts.trailer || !charts.money || !charts.weight || !charts.price) return;
+
+                // ✅ ดึงค่าจากปุ่ม Filter บนหน้าจอ
+                const moneyFilter = document.getElementById('filterMoney').value;
+                const trailerFilter = document.getElementById('filterTrailer') ? document.getElementById('filterTrailer').value : 'week';
+                const priceFilter = document.getElementById('filterPrice') ? document.getElementById('filterPrice').value : 'week';
+                
+                const todayStr = new Date().toLocaleDateString('th-TH');
+
+            // 1. คำนวณน้ำหนัก วันนี้ vs ทั้งหมด
+            const weightToday = db.filter(i => new Date(i.date).toLocaleDateString('th-TH') === todayStr)
+                                .reduce((sum, i) => sum + (i.weight || 0), 0);
+            const weightTotal = db.reduce((sum, i) => sum + (i.weight || 0), 0);
+
+            charts.weight.data.datasets[0].data = [weightToday, weightTotal - weightToday];
+            charts.weight.update();
+
+            // 2. คำนวณยอดเงินตาม Filter (รายสัปดาห์/เดือน/ปี)
+            const processMoneyData = (filterType) => {
+                const now = new Date();
+                let grouped = {};
+                db.forEach(item => {
+                    const d = new Date(item.date);
+                    let key = "";
+                    let isValid = false;
+                    if (filterType === 'week' && (now - d) <= 7 * 24 * 60 * 60 * 1000) { key = d.toLocaleDateString('th-TH', { weekday: 'short' }); isValid = true; }
+                    else if (filterType === 'month' && d.getMonth() === now.getMonth()) { key = d.getDate().toString(); isValid = true; }
+                    else if (filterType === 'year' && d.getFullYear() === now.getFullYear()) { key = d.toLocaleDateString('th-TH', { month: 'short' }); isValid = true; }
+
+                    if (isValid) {
+                        grouped[key] = (grouped[key] || 0) + (item.weight * item.price * 1000);
+                    }
+                });
+                return { labels: Object.keys(grouped), data: Object.values(grouped) };
+            };
+        // ✅ ฟังก์ชันช่วยจัดการข้อมูลตาม Filter
+            const processGenericData = (filterType, isPrice = false) => {
+                const now = new Date();
+                let grouped = {};
+                let counts = {};
+
+                db.forEach(item => {
+                    const d = new Date(item.date);
+                    let key = "";
+                    let isValid = false;
+
+                    if (filterType === 'week' && (now - d) <= 7 * 24 * 60 * 60 * 1000) {
+                        key = d.toLocaleDateString('th-TH', { day: '2-digit', month: 'short' });
+                        isValid = true;
+                    } else if (filterType === 'month' && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()) {
+                        key = d.getDate().toString();
+                        isValid = true;
+                    } else if (filterType === 'year' && d.getFullYear() === now.getFullYear()) {
+                        key = d.toLocaleDateString('th-TH', { month: 'short' });
+                        isValid = true;
+                    }
+
+                    if (isValid) {
+                        if (isPrice) {
+                            grouped[key] = (grouped[key] || 0) + (item.price * 1000);
+                            counts[key] = (counts[key] || 0) + 1;
+                        } else {
+                            grouped[key] = (grouped[key] || 0) + 1; // นับจำนวนรถ
+                        }
+                    }
+                });
+
+                let labels = Object.keys(grouped);
+                let data = isPrice 
+                    ? Object.values(grouped).map((val, idx) => val / counts[labels[idx]]) 
+                    : Object.values(grouped);
+
+                return { labels, data };
+            };
+
+            const moneyData = processMoneyData(moneyFilter);
+            charts.money.data.labels = moneyData.labels;
+            charts.money.data.datasets[0].data = moneyData.data;
+            charts.money.update();
+
+            // อัปเดตกราฟรถพ่วง
+            // ใช้ข้อมูลจาก db โดยตรงเพื่อประมวลผลจำนวนรถพ่วงรายวัน
+            const processTrailerData = () => {
+                let grouped = {};
+                // ย้อนหลัง 7 วัน
+                for(let i=6; i>=0; i--) {
+                    let d = new Date();
+                    d.setDate(d.getDate() - i);
+                    grouped[d.toLocaleDateString('th-TH', {day:'2-digit', month:'short'})] = 0;
+                }
+                db.forEach(item => {
+                    const key = new Date(item.date).toLocaleDateString('th-TH', {day:'2-digit', month:'short'});
+                    if(grouped.hasOwnProperty(key)) grouped[key]++;
+                });
+                return { labels: Object.keys(grouped), data: Object.values(grouped) };
+            };
+
+        // อัปเดตกราฟรถพ่วงตาม Filter
+            const trailerData = processGenericData(trailerFilter, false);
+            charts.trailer.data.labels = trailerData.labels;
+            charts.trailer.data.datasets[0].data = trailerData.data;
+            charts.trailer.update();
+
+            // --- อัปเดตกราฟราคาเฉลี่ย ---
+            const processPriceData = () => {
+                let grouped = {};
+                let counts = {};
+                for(let i=6; i>=0; i--) {
+                    let d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const key = d.toLocaleDateString('th-TH', {day:'2-digit', month:'short'});
+                    grouped[key] = 0;
+                    counts[key] = 0;
+                }
+                db.forEach(item => {
+                    const key = new Date(item.date).toLocaleDateString('th-TH', {day:'2-digit', month:'short'});
+                    if(grouped.hasOwnProperty(key)) {
+                        grouped[key] += (item.price * 1000);
+                        counts[key]++;
+                    }
+                });
+                return { 
+                    labels: Object.keys(grouped), 
+                    data: Object.values(grouped).map((val, idx) => counts[Object.keys(grouped)[idx]] > 0 ? val / counts[Object.keys(grouped)[idx]] : 0) 
+                };
+            };
+
+        // อัปเดตกราฟราคาเฉลี่ยตาม Filter
+            const priceData = processGenericData(priceFilter, true);
+            charts.price.data.labels = priceData.labels;
+            charts.price.data.datasets[0].data = priceData.data;
+            charts.price.update();
+        }
+
+        function renderRecentDashboard() {
+            const list = document.getElementById('recentList');
+            
+            // เพิ่มบรรทัดนี้ลงไปครับ! เพื่อหยุดการทำงานถ้าไม่มีกล่อง recentList
+            if (!list) return; 
+            
+            const latest = db.slice().reverse().slice(0, 5);
+            
+            list.innerHTML = latest.map(item => {
+                const d = new Date(item.date);
+                const dateStr = d.toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit', year: '2-digit' });
+                const timeStr = d.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+                return `
+                    <div style="padding:10px; background:#f8fafc; border-radius:8px; margin-bottom:8px; border-left:4px solid ${item.type==='สด'?'var(--pink)':'var(--blue)'}; display:flex; justify-content:space-between; align-items:center;">
+                        <div style="flex:1">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:2px;">
+                                <span style="font-weight:600; font-size:13px; color:#2d3748;">${item.customer}</span>
+                                <span style="font-size:10px; color:#a0aec0;">${dateStr} ${timeStr}</span>
+                            </div>
+                            <div style="font-size:11px; color:#718096;">${item.channel}</div>
+                        </div>
+                    </div>`;
+            }).join('') || '<p style="text-align:center; color:#ccc;">ไม่มีข้อมูล</p>';
+        }
+
+        function saveData() {
+            const cust = document.getElementById('mCust').value.trim();
+            const moist = document.getElementById('mMoist').value;
+            const pricePerTon = parseFloat(document.getElementById('mPrice').value) || 0;
+            
+            // ดึงค่าจากปุ่มเปิด-ปิด
+            const hasTruck = document.getElementById('enableTruck').checked;
+            const truck = hasTruck ? document.getElementById('mTruck').value : "-";
+            const weight = hasTruck ? (parseFloat(document.getElementById('mWeight').value) || 0) : 0;
+
+            if (!cust || !pricePerTon || !moist) {
+                Swal.fire({ icon: 'warning', title: 'ข้อมูลไม่ครบ', text: 'กรุณากรอกชื่อ, ความชื้น และราคา' });
+                return;
+            }
+
+            const type = parseFloat(moist) < 17.5 ? "สด" : "แห้ง";
+            const data = { 
+                type, customer: cust, truck: truck, weight: weight, 
+                price: pricePerTon / 1000, moist: parseFloat(moist), 
+                channel: document.getElementById('mChannel').value,
+                date: new Date().toISOString(),
+                action: "save"
+            };
+
+            toggleModal(false);
+            Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading() });
+
+            fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(data) })
+            .then(() => {
+                db.push(data);
+                updateDashboard();
+                Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ', timer: 1500 });
+                // Reset form
+                document.getElementById('enableTruck').checked = false;
+                toggleTruckInput();
+                document.querySelectorAll('.modal-content input').forEach(i => i.value = '');
+            });
+        }
+
+        function printDocument(idx) {
+            const d = db[idx];
+            const dateObj = new Date(d.date);
+            const fullDate = dateObj.toLocaleDateString('th-TH', { day: '2-digit', month: 'long', year: 'numeric' });
+            const fullTime = dateObj.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+            const pricePerTon = d.price * 1000;
+            const totalAmount = d.weight * d.price;
+
+            document.getElementById('capContent').innerHTML = `
+                <div style="font-size:16px; line-height:1.6; color:#2d3748;">
+                    <p style="margin:5px 0;">วันที่: <b>${fullDate}</b> เวลา: ${fullTime} น.</p>
+                    <p style="margin:5px 0;">ลูกค้า: <b>${d.customer}</b> (${d.channel})</p>
+                    <hr style="border:1px dashed #ccc;">
+                    <p style="margin:5px 0;">สินค้า: <b>ข้าวโพด${d.type}</b></p>
+                    <p style="margin:5px 0;">ความชื้น: ${d.moist}% | ราคา: ฿${pricePerTon.toLocaleString()}/ตัน</p>
+                </div>`;
+
+            html2canvas(document.getElementById('captureArea')).then(canvas => {
+                Swal.fire({
+                    title: 'ใบเสร็จ GoldKernel',
+                    imageUrl: canvas.toDataURL("image/png"),
+                    imageAlt: 'Receipt',
+                    confirmButtonText: 'ปิดหน้าต่าง',
+                    footer: 'กดค้างที่รูปภาพเพื่อบันทึกหรือส่งต่อ'
+                });
+            });
+        }
+
+        window.onload = () => {
+            charts.weight = new Chart(document.getElementById('weightChart'), {
+                type: 'doughnut',
+                data: { labels: ['วันนี้', 'อื่นๆ'], datasets: [{ data: [0, 0], backgroundColor: ['#FF8AAB', '#e2e8f0'] }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            charts.money = new Chart(document.getElementById('moneyChart'), {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'ยอดเงิน (บาท)', data: [], backgroundColor: '#48BB78' }] },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+            // 1. สร้างกราฟจำนวนรถพ่วง
+            charts.trailer = new Chart(document.getElementById('trailerChart'), {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'จำนวนพ่วง', data: [], borderColor: '#FF8AAB', backgroundColor: 'rgba(255, 138, 171, 0.2)', fill: true, tension: 0.3 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // 2. สร้างกราฟราคาเฉลี่ย
+            charts.price = new Chart(document.getElementById('priceChart'), {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'ราคาเฉลี่ย (บาท)', data: [], backgroundColor: '#00B0FF', borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+            });
+
+            // 3. โหลดข้อมูลจาก LocalStorage
+            const local = localStorage.getItem('gk_db');
+            if (local) { db = JSON.parse(local); updateDashboard(); }
+            
+            // 4. ฟังก์ชันเอา Splash Screen ออก (ตัวที่หายไป)
+            const removeSplash = () => {
+                const s = document.getElementById('splash-screen');
+                if(s) { 
+                    s.style.opacity = '0'; 
+                    setTimeout(() => s.remove(), 800); 
+                }
+            };
+
+            // 5. ดึงข้อมูลจริงจาก Google Sheets
+            fetch(SCRIPT_URL)
+                .then(res => res.json())
+                .then(data => {
+                    if (data && data.length > 0) {
+                        db = data.map(row => ({
+                            date: row[0], type: row[1], truck: row[2], customer: row[3],
+                            weight: parseFloat(row[4]), price: parseFloat(row[5]),
+                            moist: parseFloat(row[6]), channel: row[7] || 'หน้าบ้าน'
+                        }));
+                        updateDashboard();
+                        renderDocumentList();
+                    }
+                    removeSplash(); // โหลดสำเร็จ -> เอาหน้าจอออก
+                })
+                .catch(err => {
+                    console.error(err);
+                    removeSplash(); // โหลดพลาด -> เอาหน้าจอออกเพื่อให้ใช้งานต่อได้
+                });
+
+            setTimeout(removeSplash, 5000); // กันเหนียว เผื่อเน็ตช้าเกิน 5 วิ
+        };
+
+        function copySummaryText() {
+            try {
+                const name = document.getElementById('summaryNameDisplay').innerText;
+                const count = document.getElementById('summaryCountDisplay').innerText;
+                const maxMoist = document.getElementById('summaryMaxMoistDisplay').innerText;
+                const maxPrice = document.getElementById('summaryMaxPriceDisplay').innerText;
+                const moistAtMax = document.getElementById('summaryMoistAtMaxPrice').innerText;
+                
+                // ดึงวันที่และเวลาปัจจุบัน
+                const now = new Date();
+                const dateStr = now.toLocaleDateString('th-TH', { day: '2-digit', month: 'long', year: 'numeric' });
+                const timeStr = now.toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
+
+                // ตรวจสอบว่าตอนนี้เลือก Filter อะไรอยู่ (วันนี้ หรือ ทั้งหมด)
+                const filterType = currentReportFilter === 'today' ? "📅 เฉพาะวันนี้" : "📚 รายการทั้งหมด";
+
+                // ออกแบบโครงสร้างข้อความใหม่
+                const textToCopy = 
+                    `📌 *สรุปรายงานรับซื้อข้าวโพด (GK)*\n` +
+                    `----------------------------------\n` +
+                    `👤 *ลูกค้า:* ${name}\n` +
+                    `📂 *ประเภท:* ${filterType}\n` +
+                    `⏱ *ข้อมูล ณ:* ${dateStr} (${timeStr} น.)\n` +
+                    `----------------------------------\n` +
+                    `🚛 จำนวนทั้งหมด: *${count}* พ่วง\n` +
+                    `💧 ความชื้นสูงสุด: *${maxMoist}*\n` +
+                    `💰 ราคาสูงสุด: *${maxPrice}* /ตัน\n` +
+                    `   _(ที่ความชื้น ${moistAtMax}%)_\n` +
+                    `----------------------------------\n` +
+                    `✅ ตรวจสอบแล้ว ข้อมูลถูกต้อง`;
+
+                // สั่งคัดลอกลง Clipboard
+                navigator.clipboard.writeText(textToCopy).then(() => {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'คัดลอกสำเร็จ!',
+                        text: `ระบบระบุเป็น "${filterType}" เรียบร้อย`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                });
+            } catch (e) {
+                console.error(e);
+                Swal.fire('เกิดข้อผิดพลาด', 'ไม่สามารถคัดลอกข้อมูลได้', 'error');
+            }
+        }
+
+        let currentReportFilter = 'today'; // ค่าเริ่มต้นให้แสดงเฉพาะของวันนี้
+
+        function setReportFilter(type) {
+            currentReportFilter = type;
+            
+            // เปลี่ยนสีปุ่มเพื่อให้รู้ว่าเลือกอันไหนอยู่
+            const btnToday = document.getElementById('btnFilterToday');
+            const btnAll = document.getElementById('btnFilterAll');
+            
+            if (type === 'today') {
+                btnToday.style.background = 'var(--pink)'; btnToday.style.color = 'white';
+                btnAll.style.background = 'white'; btnAll.style.color = '#666';
+            } else {
+                btnAll.style.background = 'var(--pink)'; btnAll.style.color = 'white';
+                btnToday.style.background = 'white'; btnToday.style.color = '#666';
+            }
+            
+            renderDocumentList(); // สั่งวาดตารางใหม่
+        }
+
+        function renderDocumentList() {
+            const s = document.getElementById('searchCustomer').value.toLowerCase().trim();
+            const todayStr = new Date().toLocaleDateString('th-TH');
+            
+            // --- เริ่มการกรองข้อมูล ---
+            let filtered = db;
+
+            // 1. กรองตามช่วงเวลา (วันนี้ หรือ ทั้งหมด)
+            if (currentReportFilter === 'today') {
+                filtered = filtered.filter(item => new Date(item.date).toLocaleDateString('th-TH') === todayStr);
+            }
+
+            // 2. กรองตามชื่อลูกค้าที่พิมพ์ค้นหา
+            if (s !== "") {
+                filtered = filtered.filter(item => item.customer.toLowerCase().includes(s));
+            }
+            // -----------------------
+
+            const tbody = document.getElementById('documentListBody');
+            const summaryCard = document.getElementById('customerSummary');
+
+            // ส่วนการแสดงสรุปยอด (Summary)
+            if (s !== "" && filtered.length > 0) {
+                summaryCard.style.display = 'block';
+                document.getElementById('summaryNameDisplay').innerText = s;
+                document.getElementById('summaryCountDisplay').innerText = filtered.length;
+                
+                const maxMoist = Math.max(...filtered.map(i => i.moist));
+                document.getElementById('summaryMaxMoistDisplay').innerText = maxMoist + "%";
+
+                const maxPriceItem = filtered.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
+                document.getElementById('summaryMaxPriceDisplay').innerText = "฿" + (maxPriceItem.price * 1000).toLocaleString();
+                document.getElementById('summaryMoistAtMaxPrice').innerText = maxPriceItem.moist;
+            } else {
+                summaryCard.style.display = 'none';
+            }
+
+            // ส่วนการวาดตาราง (เพิ่มปุ่มลบถังขยะและรหัสผ่าน Admin ตามที่ทำไว้)
+            tbody.innerHTML = filtered.slice().reverse().map((i, idx) => {
+                const d = new Date(i.date);
+                return `<tr>
+                    <td>#${filtered.length - idx}</td>
+                    <td style="font-size:11px;">${d.toLocaleDateString('th-TH')}<br>${d.toLocaleTimeString('th-TH')}</td>
+                    <td><b>${i.customer}</b></td>
+                    <td style="font-size:11px;">${i.truck || '-'}</td>
+                    <td style="color:var(--blue); font-weight:bold;">${i.weight || 0}</td>
+                    <td>${i.moist}%</td>
+                    <td>฿${(i.price * 1000).toLocaleString()}</td>
+                    <td>
+                        <div style="display:flex; gap:8px;">
+                            <button onclick="printDocument(${db.indexOf(i)})" style="border:none; background:none; font-size:18px; cursor:pointer;">📄</button>
+                            <button onclick="deleteItem(${db.indexOf(i)})" style="border:none; background:none; font-size:18px; cursor:pointer;">🗑️</button>
+                        </div>
+                    </td>
+                </tr>`;
+            }).join('') || '<tr><td colspan="8" style="text-align:center; padding:20px; color:#ccc;">ไม่พบข้อมูล</td></tr>';
+        }
+
+        function deleteItem(index) {
+            const item = db[index];
+
+            Swal.fire({
+                title: 'ยืนยันการลบรายการ?',
+                text: `ลูกค้า: ${item.customer}`,
+                input: 'password',
+                inputPlaceholder: 'กรอกรหัสผ่าน Admin',
+                showCancelButton: true,
+                confirmButtonText: 'ลบข้อมูล',
+                confirmButtonColor: '#e53e3e',
+                preConfirm: (password) => {
+                    // แก้ไขรหัสผ่านตรงนี้ครับ 
+                    if (password === 'C2tech1234') { 
+                        return true;
+                    } else {
+                        Swal.showValidationMessage('รหัสผ่านไม่ถูกต้อง!');
+                        return false;
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // โค้ดส่วนการเชื่อมต่อเพื่อลบข้อมูล... 
+                    fetch(SCRIPT_URL, {
+                        method: "POST",
+                        mode: "no-cors",
+                        body: JSON.stringify({
+                            action: "delete",
+                            date: item.date // ส่งค่าวันที่และเวลาที่บันทึกไปเป็น Key ในการลบ
+                        })
+                    }).then(() => {
+                        db.splice(index, 1);
+                        updateDashboard();
+                        renderDocumentList();
+                        Swal.fire('ลบรายการสำเร็จ!', '', 'success');
+                    });
+                }
+            });
+        }
+
+        function toggleTruckInput() {
+            const isChecked = document.getElementById('enableTruck').checked;
+            document.getElementById('truckSection').style.display = isChecked ? 'grid' : 'none';
+        }
+    </script>
+</body>
+</html>
