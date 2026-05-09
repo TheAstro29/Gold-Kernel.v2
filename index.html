@@ -771,7 +771,7 @@
                 document.getElementById('summaryMaxMoistDisplay').innerText = maxMoist + "%";
 
                 const maxPriceItem = filtered.reduce((prev, curr) => (prev.price > curr.price) ? prev : curr);
-                document.getElementById('summaryMaxPriceDisplay').innerText = "฿" + (maxPriceItem.price * 1000).toLocaleString();
+                document.getElementById('summaryMaxPriceDisplay').innerText = "฿" + (maxPriceItem.price * 1).toLocaleString();
                 document.getElementById('summaryMoistAtMaxPrice').innerText = maxPriceItem.moist;
             } else {
                 summaryCard.style.display = 'none';
