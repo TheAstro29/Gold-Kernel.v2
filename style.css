@@ -139,10 +139,16 @@ body {
     z-index: 10000 !important; 
 }
 
-
 #entryModal {
     z-index: 9999; 
 }
+
+.dropdown-content {
+    z-index: 10001 !important;
+    max-height: 200px; 
+    overflow-y: auto;
+}
+
 .chart-container {
   background: white;
   margin: 15px;
@@ -385,4 +391,11 @@ input:checked + .slider:before {
   background: linear-gradient(to bottom, rgba(255,255,255,0.4), transparent);
   border-radius: 50px 50px 20px 20px;
   pointer-events: none;
+}
+
+@media screen and (max-width: 600px) {
+  .modal-content {
+    margin-top: 10%; 
+    width: 95%;     
+  }
 }
