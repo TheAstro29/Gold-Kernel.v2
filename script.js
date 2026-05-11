@@ -577,7 +577,7 @@ function copySummaryText() {
   ลูกค้า: ${name}
   วันที่: ${dateStr} น.
 --------------------------
-  จำนวนของท่าน: ${count} พ่วง
+  รับซื้อทั้งหมด: ${count} พ่วง
   ความชื้นเฉลี่ย: ${avgMoist}%
   ราคาสูงสุด: ฿${maxPrice.toLocaleString()} (ที่ความชื้น ${moistAtMax}%)
 --------------------------
