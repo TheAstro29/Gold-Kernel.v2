@@ -1,5 +1,4 @@
-const SCRIPT_URL =
-  "https://script.google.com/macros/s/AKfycby5ON_vODh0U8_fxGkSK4mQBOuRgk3t-enau3DsDoJsWn2INepoc8AOB5dmkgrQiRrz_A/exec";
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5ON_vODh0U8_fxGkSK4mQBOuRgk3t-enau3DsDoJsWn2INepoc8AOB5dmkgrQiRrz_A/exec";
 let db = [];
 let charts = {};
 let currentReportFilter = "all";
@@ -389,35 +388,46 @@ function renderDocumentList() {
 
 // 💾 บันทึกข้อมูล แบบสมบูรณ์
 async function saveData() {
+  // 1. ดึงค่าจากหน้าจอ
   const cust = document.getElementById("mCustomer").value;
   const weight = document.getElementById("mWeight").value;
-  const moist = document.getElementById("mMoist").value;
+  const moistValue = document.getElementById("mMoist").value;
   const price = document.getElementById("mPrice").value;
   const channel = document.getElementById("mChannel") ? document.getElementById("mChannel").value : "หน้าบ้าน";
+
+  // ตรวจสอบสถานะทะเบียนรถ
   const truck = document.getElementById("enableTruck").checked
     ? document.getElementById("mTruck").value
     : "-";
 
+  // 2. ตรวจสอบข้อมูลเบื้องต้น
   if (!cust || !weight || (channel !== "โอนตั๋ว" && !price)) {
     Swal.fire("กรอกข้อมูลไม่ครบ!", "กรุณาระบุชื่อและข้อมูลให้เรียบร้อย", "warning");
     return;
   }
 
+  // 3. ปิดหน้าต่างกรอกข้อมูลทันที (เพื่อให้ Popup แจ้งเตือนไม่โดนทับ)
   closeEntryModal();
+
+  // 4. แสดง Loading
   Swal.fire({
     title: "กำลังบันทึก...",
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading(),
   });
 
-  // เตรียมข้อมูลให้ตรงกับที่ GAS ต้องการ (data.action และ data.moist)
+  // 🤖 ระบบ Auto: คำนวณ สด/แห้ง จากเกณฑ์ 17.5%
+  const moist = parseFloat(moistValue || 0);
+  let autoType = moist === 0 ? "ไม่ระบุ" : (moist < 17.5 ? "แห้ง" : "สด");
+
+  // 5. เตรียมข้อมูลส่งไปที่ Sheet
   const payload = {
     action: "save",
-    type: "รับซื้อ",
+    type: autoType,
     truck: truck,
     customer: cust,
     weight: weight,
-    moist: moist || 0, // ส่งค่าความชื้นตรงๆ
+    moist: moist,
     price: price || 0,
     channel: channel,
     isBroken: document.getElementById("mBroken").checked ? "ใช่" : "ไม่ใช่",
@@ -426,23 +436,24 @@ async function saveData() {
   };
 
   try {
-    // เปลี่ยนวิธีส่ง เพื่อให้ Apps Script ได้รับ data แน่นอน
+    // 6. ส่งข้อมูลไปที่ Google Apps Script
     await fetch(SCRIPT_URL, {
       method: "POST",
-      body: JSON.stringify(payload), // ส่ง payload ไปตรงๆ
+      body: JSON.stringify(payload),
       headers: {
-        "Content-Type": "text/plain;charset=utf-8", // ใช้ text/plain เพื่อเลี่ยงปัญหา CORS
+        "Content-Type": "text/plain;charset=utf-8",
       },
     });
 
-    // อัปเดตหน้าจอทันที
+    // 7. อัปเดตข้อมูลในหน้าเว็บทันที
     db.push(payload);
     updateDashboard();
     renderDocumentList();
+
     Swal.fire("สำเร็จ!", "บันทึกข้อมูลเรียบร้อยแล้ว", "success");
   } catch (e) {
-    console.error(e);
-    Swal.fire("Error!", "ไม่สามารถบันทึกได้: " + e.message, "error");
+    console.error("Save Error:", e);
+    Swal.fire("Error!", "เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
   }
 }
 
