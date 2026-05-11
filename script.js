@@ -165,9 +165,9 @@ function updateDashboard() {
     document.getElementById("stat-day-avg").innerText =
       todayData.length > 0
         ? (
-            todayData.reduce((s, i) => s + parseFloat(i.moist || 0), 0) /
-            todayData.length
-          ).toFixed(1)
+          todayData.reduce((s, i) => s + parseFloat(i.moist || 0), 0) /
+          todayData.length
+        ).toFixed(1)
         : "0";
   if (document.getElementById("stat-total-count"))
     document.getElementById("stat-total-count").innerText = db.length;
@@ -332,6 +332,7 @@ function renderDocumentList() {
   }
 
   // 4. สร้าง HTML ทีละแถว (ทำงานแค่ 50 รอบ ไม่ใช่พันรอบ!)
+  // 4. สร้าง HTML ทีละแถว (แก้ไขปิด Loop และเพิ่มข้อมูลให้ครบ)
   let html = "";
   paginatedData.forEach((obj) => {
     let i = obj.item;
@@ -340,26 +341,34 @@ function renderDocumentList() {
     let dStr = isNaN(d)
       ? (i.date || "").split("T")[0]
       : d.toLocaleDateString("th-TH", {
-          day: "2-digit",
-          month: "2-digit",
-        });
+        day: "2-digit",
+        month: "2-digit",
+      });
 
-    html += `<tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:12px 8px;">${dStr}</td>
-                    <td style="padding:12px 8px;">
-                        <b style="color:#2d3748; font-size:13px;">${i.customer || "-"}</b><br>
-                        <span style="font-size:10px; background:#edf2f7; color:#4a5568; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">
-                            🚛 ${i.truck && i.truck !== "-" ? i.truck : "ไม่ระบุ"}
-                        </span>
-                    </td>
-                    <td style="padding:12px 8px; text-align:right; color:var(--blue); font-weight:bold;">${parseFloat(i.weight || 0).toFixed(2)}</td>
-                    <td style="padding:12px 8px; text-align:center;">${i.moist || 0}%</td>
-                    <td style="padding:12px 8px; text-align:right; font-weight:bold; color: #38a169;">฿${parseFloat(i.price || 0).toLocaleString()}</td>
-                    <td style="padding:12px 8px; text-align:center; display:flex; gap:8px; justify-content:center;">
-                        <button onclick="printDocument(${realIndex})" style="border:none; background:none; cursor:pointer; font-size:16px;">🖨️</button>
-                        <button onclick="deleteItem(${realIndex})" style="border:none; background:none; cursor:pointer; font-size:16px;">🗑️</button>
-                    </td>
-                </tr>`;
+    html += `
+    <tr>
+      <td style="padding:12px 8px; color:#718096;">${dStr}</td>
+      <td style="padding:12px 8px;">
+          <b style="color:#2d3748; font-size:13px;">${i.customer || "-"}</b><br>
+          <div style="display:flex; flex-direction:column; gap:2px; margin-top:4px;">
+              <span style="font-size:10px; background:#fff5f7; color:var(--pink); padding:1px 6px; border-radius:4px; width:fit-content; border:1px solid #ffe4e6;">
+                  ✨ ${i.type || "สด"}
+              </span>
+              <span style="font-size:10px; color:#718096; display:flex; align-items:center; gap:3px;">
+                  🚛 ${i.truck && i.truck !== "-" ? i.truck : "ไม่ระบุทะเบียน"}
+              </span>
+          </div>
+      </td>
+      <td style="padding:12px 8px; text-align:right; font-weight:bold;">${parseFloat(i.weight || 0).toFixed(2)}</td>
+      <td style="padding:12px 8px; text-align:center;">${i.moist || 0}%</td>
+      <td style="padding:12px 8px; text-align:right; color:#38a169;">${parseFloat(i.price || 0).toLocaleString()}</td>
+      <td style="padding:12px 8px; text-align:center;">
+          <div style="display:flex; gap:5px; justify-content:center;">
+              <button onclick="printDocument(${realIndex})" style="border:none; background:#ebf8ff; color:#3182ce; padding:5px; border-radius:5px; cursor:pointer;">🖨️</button>
+              <button onclick="deleteItem(${realIndex})" style="border:none; background:#fff5f5; color:#e53e3e; padding:5px; border-radius:5px; cursor:pointer;">🗑️</button>
+          </div>
+      </td>
+    </tr>`;
   });
 
   // 5. โค้ดสร้างปุ่มโหลดข้อมูลเพิ่ม
@@ -382,21 +391,18 @@ function renderDocumentList() {
 async function saveData() {
   const cust = document.getElementById("mCustomer").value;
   const weight = document.getElementById("mWeight").value;
+  const moist = document.getElementById("mMoist").value;
   const price = document.getElementById("mPrice").value;
-  const channel = document.getElementById("mChannel").value;
+  const channel = document.getElementById("mChannel") ? document.getElementById("mChannel").value : "หน้าบ้าน";
   const truck = document.getElementById("enableTruck").checked
     ? document.getElementById("mTruck").value
     : "-";
 
-  // ข้ามการบังคับกรอกราคาเมื่อเป็น "โอนตั๋ว"
   if (!cust || !weight || (channel !== "โอนตั๋ว" && !price)) {
-    Swal.fire(
-      "กรอกข้อมูลไม่ครบ!",
-      "กรุณาระบุชื่อและข้อมูลให้เรียบร้อย",
-      "warning",
-    );
+    Swal.fire("กรอกข้อมูลไม่ครบ!", "กรุณาระบุชื่อและข้อมูลให้เรียบร้อย", "warning");
     return;
   }
+
   closeEntryModal();
   Swal.fire({
     title: "กำลังบันทึก...",
@@ -404,13 +410,14 @@ async function saveData() {
     didOpen: () => Swal.showLoading(),
   });
 
-  const data = {
+  // เตรียมข้อมูลให้ตรงกับที่ GAS ต้องการ (data.action และ data.moist)
+  const payload = {
     action: "save",
     type: "รับซื้อ",
     truck: truck,
     customer: cust,
     weight: weight,
-    moist: document.getElementById("mMoist").value || 0,
+    moist: moist || 0, // ส่งค่าความชื้นตรงๆ
     price: price || 0,
     channel: channel,
     isBroken: document.getElementById("mBroken").checked ? "ใช่" : "ไม่ใช่",
@@ -419,17 +426,23 @@ async function saveData() {
   };
 
   try {
+    // เปลี่ยนวิธีส่ง เพื่อให้ Apps Script ได้รับ data แน่นอน
     await fetch(SCRIPT_URL, {
       method: "POST",
-      mode: "no-cors",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload), // ส่ง payload ไปตรงๆ
+      headers: {
+        "Content-Type": "text/plain;charset=utf-8", // ใช้ text/plain เพื่อเลี่ยงปัญหา CORS
+      },
     });
-    db.push(data);
+
+    // อัปเดตหน้าจอทันที
+    db.push(payload);
     updateDashboard();
     renderDocumentList();
     Swal.fire("สำเร็จ!", "บันทึกข้อมูลเรียบร้อยแล้ว", "success");
   } catch (e) {
-    Swal.fire("Error!", "ไม่สามารถบันทึกได้", "error");
+    console.error(e);
+    Swal.fire("Error!", "ไม่สามารถบันทึกได้: " + e.message, "error");
   }
 }
 
@@ -577,7 +590,7 @@ function copySummaryText() {
   ลูกค้า: ${name}
   วันที่: ${dateStr} น.
 --------------------------
-  รับซื้อทั้งหมด: ${count} พ่วง
+  จำนวนของท่าน: ${count} พ่วง
   ความชื้นเฉลี่ย: ${avgMoist}%
   ราคาสูงสุด: ฿${maxPrice.toLocaleString()} (ที่ความชื้น ${moistAtMax}%)
 --------------------------
@@ -673,6 +686,49 @@ function printDocument(index) {
   });
 }
 
+// 1. ฟังก์ชันสลับหน้าจอ (แนะนำให้ใช้ชื่อ showView ตามระบบเดิมของคุณ)
+function showView(v) {
+  const dashView = document.getElementById("dashboard-view");
+  const reportView = document.getElementById("report-view");
+
+  if (dashView && reportView) {
+    dashView.style.display = v === "dashboard" ? "block" : "none";
+    reportView.style.display = v === "report" ? "block" : "none";
+  }
+
+  // ปรับสถานะปุ่มเมนูให้เป็น Active
+  const navDash = document.getElementById("nav-dash");
+  const navReport = document.getElementById("nav-report");
+
+  if (navDash) navDash.classList.toggle("active", v === "dashboard");
+  if (navReport) navReport.classList.toggle("active", v === "report");
+
+  // ถ้าไปหน้า Report ให้โหลดรายการข้อมูล
+  if (v === "report") renderDocumentList();
+
+  // ปิดแถบเมนูด้านข้าง
+  toggleSidebar(false);
+}
+
+// 2. ฟังก์ชัน เปิด/ปิด Sidebar (ต้องมีครบทุกเงื่อนไข)
+function toggleSidebar(show) {
+  const s = document.getElementById("sidebar");
+  const o = document.getElementById("overlay");
+
+  if (!s || !o) return; // ป้องกัน Error ถ้าหา Element ไม่เจอ
+
+  if (show === undefined) {
+    s.classList.toggle("active");
+    o.classList.toggle("active");
+  } else if (show === true) {
+    s.classList.add("active");
+    o.classList.add("active");
+  } else {
+    s.classList.remove("active");
+    o.classList.remove("active");
+  }
+}
+
 // เมนู & หน้าต่าง
 function switchView(v) {
   document.getElementById("dashboard-view").style.display =
@@ -686,19 +742,8 @@ function switchView(v) {
     .getElementById("nav-report")
     .classList.toggle("active", v === "report");
   if (v === "report") renderDocumentList();
-  toggleSidebar(false);
 }
-function toggleSidebar(show) {
-  const s = document.getElementById("sidebar");
-  const o = document.getElementById("overlay");
-  if (show === undefined) {
-    s.classList.toggle("active");
-    o.classList.toggle("active");
-  } else {
-    s.classList.remove("active");
-    o.classList.remove("active");
-  }
-}
+
 function openEntryModal() {
   document.getElementById("entryModal").style.display = "block";
 }
@@ -716,7 +761,6 @@ function closeEntryModal() {
 }
 window.onclick = function (event) {
   const modal = document.getElementById("entryModal");
-  // ถ้าจุดที่คลิกคือตัวพื้นหลังของ modal (ไม่ใช่กล่องสีขาวด้านใน)
   if (event.target === modal) {
     closeEntryModal();
   }
