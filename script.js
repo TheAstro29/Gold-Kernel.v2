@@ -642,7 +642,7 @@ function printDocument(index) {
         <div style="font-size:16px; line-height:1.8; color:#000;">
             <p><b>วันที่:</b> ${dStr} ${tStr}</p>
             <p><b>ชื่อลูกค้า:</b> ${i.customer}</p>
-            <p><b>ประเภทรถ/ทะเบียน:</b> ${i.truck || "-"}</p>
+            <p><b>ทะเบียน:</b> ${i.truck || "-"}</p>
             <p><b>ช่องทาง:</b> ${i.channel}</p>
             <p style="background:#f8f9fa; padding:10px; border-radius:8px;">
                 <b>น้ำหนักสินค้า:</b> <span style="font-size:24px; color:var(--blue);">${parseFloat(i.weight || 0).toFixed(2)}</span> ตัน
