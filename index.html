@@ -1,674 +1,549 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="th">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>GoldKernel (GK) | Smart Mobile System</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap" rel="stylesheet">
-    <style>
-        :root { --pink: #ff6b6b; --blue: #4834d4; --bg: #f7f1e3; --sidebar-width: 250px; }
-        * { box-sizing: border-box; font-family: 'Sarabun', sans-serif; }
-        body { margin: 0; background-color: var(--bg); color: #2d3436; overflow-x: hidden; padding-bottom: 80px; }
-
-        @keyframes modalScaleIn {
-            from { opacity: 0; transform: scale(0.8) translateY(20px); }
-            to { opacity: 1; transform: scale(1) translateY(0); }
-        }
-        @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
-        @keyframes logoBounce { 0%, 100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-20px) scale(1.1); } }
-        .splash-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab); background-size: 400% 400%; animation: gradientBG 15s ease infinite; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 9999; color: white; transition: opacity 0.8s ease-out; }
-        .logo-container { animation: logoBounce 3s ease-in-out infinite; font-size: 80px; margin-bottom: 20px; }
-
-        .sidebar { position: fixed; left: calc(-1 * var(--sidebar-width)); width: var(--sidebar-width); height: 100%; background: white; transition: 0.3s; z-index: 1500; box-shadow: 2px 0 10px rgba(0,0,0,0.1); }
-        .sidebar.active { left: 0; }
-        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1400; }
-        .overlay.active { display: block; }
-
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 15px; }
-        /* อัปเกรดความ Smooth และ Modern UI */
-        .stat-card { 
-            background: rgba(255, 255, 255, 0.95); padding: 18px; border-radius: 20px; 
-            box-shadow: 0 8px 20px rgba(0,0,0,0.03); backdrop-filter: blur(10px);
-            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); border: 1px solid rgba(255,255,255,0.5);
-        }
-        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0,0,0,0.08); }
-        
-        .chart-container { 
-            background: white; margin: 15px; padding: 20px; border-radius: 24px; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.04); transition: all 0.3s ease; border: 1px solid #f8f9fa;
-        }
-        .chart-container:hover { box-shadow: 0 15px 35px rgba(0,0,0,0.08); }
-
-        button { transition: all 0.2s ease; cursor: pointer; }
-        button:active { transform: scale(0.95); }
-        
-        .nav-item { transition: color 0.3s, transform 0.3s; }
-        .nav-item:active { transform: scale(0.85); }
-        
-        input, select { transition: all 0.3s; }
-        input:focus, select:focus { border-color: var(--pink); box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.15); }
-        
-        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 22px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--pink); }
-        input:checked + .slider:before { transform: translateX(18px); }
-
-        .search-input { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #dfe6e9; margin-bottom: 10px; outline: none; }
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: white; display: flex; justify-content: space-around; padding: 12px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
-        .nav-item { border: none; background: none; color: #636e72; font-size: 11px; display: flex; flex-direction: column; align-items: center; cursor: pointer; }
-        .nav-item.active { color: var(--pink); font-weight: bold; }
-
-        .modal { display: none; position: fixed; z-index: 2000; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
-        .modal-content { 
-            background: white; margin: 10% auto; padding: 20px; border-radius: 20px; 
-            width: 90%; max-width: 500px; max-height: 85vh; overflow-y: auto; position: relative;
-            /* ✅ เพิ่มบรรทัดนี้: หน่วงเวลา 0.3 วินาที */
-            animation: modalScaleIn 0.3s ease-out; 
-        }
-    </style>
-</head>
-<body>
-
+    <link
+      href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div id="splash" class="splash-screen">
-        <div class="logo-container">🌽</div>
-        <h1 style="margin:0; letter-spacing: 2px;">GoldKernel (GK)</h1>
-        <p style="opacity: 0.8;">ธนกรการเกษตร 99 | Smart Mobile System</p>
+      <div class="logo-container">
+        <img
+          src="img/logo.png"
+          alt="GoldKernel Logo"
+          style="width: 150px; height: 150px; object-fit: contain"
+        />
+      </div>
+      <h1 style="margin: 0; letter-spacing: 2px">GoldKernel (GK)</h1>
+      <p style="opacity: 0.8">ธนกรการเกษตร 99 | Smart Mobile System</p>
     </div>
 
-    <div id="main-content" style="display:none; padding-top: 10px;">
-            <header style="padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.9); backdrop-filter: blur(10px); position: sticky; top: 0; z-index: 100;">
-                <div style="font-weight: 800; font-size: 18px; color: transparent; background: linear-gradient(45deg, var(--pink), var(--blue)); -webkit-background-clip: text; background-clip: text;">
-                    🌽 GoldKernel
-                </div>
-                <div style="font-size: 12px; color: #a0aec0; background: #f1f5f9; padding: 4px 10px; border-radius: 20px;" onclick="location.reload()">
-                    🔄 รีเฟรช
-                </div>
-            </header>
+    <div id="main-content" style="display: none; padding-top: 10px">
+      <header
+        style="
+          padding: 10px 20px;
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          background: rgba(255, 255, 255, 0.9);
+          backdrop-filter: blur(10px);
+          position: sticky;
+          top: 0;
+          z-index: 100;
+          border-bottom: 1px solid #eee;
+        "
+      >
+        <div style="display: flex; align-items: center; gap: 10px">
+          <img
+            src="img/logo.png"
+            alt="GK Logo"
+            style="width: 35px; height: 35px; object-fit: contain"
+          />
+          <div
+            style="
+              font-weight: 800;
+              font-size: 18px;
+              color: transparent;
+              background: linear-gradient(45deg, var(--pink), var(--blue));
+              -webkit-background-clip: text;
+              background-clip: text;
+            "
+          >
+            GoldKernel
+          </div>
+        </div>
+        <div
+          style="
+            font-size: 12px;
+            color: #a0aec0;
+            background: #f1f5f9;
+            padding: 4px 10px;
+            border-radius: 20px;
+            cursor: pointer;
+          "
+          onclick="location.reload()"
+        >
+          🔄 รีเฟรช
+        </div>
+      </header>
 
-        <div id="dashboard-view">
-            <div class="stat-grid">
-                <div class="stat-card" style="border-left: 5px solid var(--pink);">
-                    <small style="color:#718096">รับซื้อวันนี้</small>
-                    <div style="font-size: 22px; font-weight: bold; color: var(--pink);"><span id="stat-day-count">0</span> พ่วง</div>
-                </div>
-                <div class="stat-card" style="border-left: 5px solid var(--blue);">
-                    <small style="color:#718096">ความชื้นเฉลี่ย (วันนี้)</small>
-                    <div style="font-size: 22px; font-weight: bold; color: var(--blue);"><span id="stat-day-avg">0</span>%</div>
-                </div>
-                <div class="stat-card"><small>สัปดาห์นี้</small><div style="font-size: 18px; font-weight: bold;"><span id="stat-week-count">0</span> พ่วง</div></div>
-                <div class="stat-card"><small>รายการทั้งหมด</small><div style="font-size: 18px; font-weight: bold;"><span id="stat-total-count">0</span></div></div>
+      <div id="dashboard-view">
+        <div class="stat-grid">
+          <div class="stat-card" style="border-left: 5px solid var(--pink)">
+            <small style="color: #718096">รับซื้อวันนี้</small>
+            <div style="font-size: 22px; font-weight: bold; color: var(--pink)">
+              <span id="stat-day-count">0</span> พ่วง
             </div>
-
-            <div class="chart-container" style="position: relative;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                    <h3 style="margin:0; font-size: 14px;">🌽 สัดส่วนคุณภาพข้าวโพด</h3>
-                    <select id="doughnutFilter" onchange="updateDoughnutChart()" style="padding:4px 8px; border-radius:8px; border:1px solid #e2e8f0; font-size:11px; outline:none; background:#f8fafc; color:#4a5568; cursor:pointer;">
-                        <option value="all">ทั้งหมด</option>
-                        <option value="day">วันนี้</option>
-                        <option value="week">สัปดาห์นี้</option>
-                        <option value="year">ปีนี้</option>
-                    </select>
-                </div>
-                <div style="position: relative; height: 180px; width: 100%; display:flex; justify-content:center;">
-                    <canvas id="qualityChart"></canvas>
-                </div>
+          </div>
+          <div class="stat-card" style="border-left: 5px solid var(--blue)">
+            <small style="color: #718096">ความชื้นเฉลี่ย (วันนี้)</small>
+            <div style="font-size: 22px; font-weight: bold; color: var(--blue)">
+              <span id="stat-day-avg">0</span>%
             </div>
-
-            <div class="chart-container">
-                <h3 style="margin:0 0 15px 0; font-size: 14px;">⚖️ ปริมาณน้ำหนัก (ตัน) รายเดือน</h3>
-                <canvas id="weightChart"></canvas>
+          </div>
+          <div class="stat-card">
+            <small>สัปดาห์นี้</small>
+            <div style="font-size: 18px; font-weight: bold">
+              <span id="stat-week-count">0</span> พ่วง
             </div>
-            <div class="chart-container">
-                <h3 style="margin:0 0 15px 0; font-size: 14px;">💰 ยอดเงินรับซื้อ (บาท) รายเดือน</h3>
-                <canvas id="amountChart"></canvas>
+          </div>
+          <div class="stat-card">
+            <small>รายการทั้งหมด</small>
+            <div style="font-size: 18px; font-weight: bold">
+              <span id="stat-total-count">0</span>
             </div>
+          </div>
         </div>
 
-        <div id="report-view" style="display:none; padding:15px;">
-            <div id="filterButtonGroup" style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap;">
-                <button onclick="setReportFilter('1')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white; font-size: 11px;">1 วัน</button>
-                <button onclick="setReportFilter('3')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white; font-size: 11px;">3 วัน</button>
-                <button onclick="setReportFilter('7')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white; font-size: 11px;">7 วัน</button>
-                <button onclick="setReportFilter('30')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white; font-size: 11px;">เดือน</button>
-                <button onclick="setReportFilter('365')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid #ddd; background: white; font-size: 11px;">ปี</button>
-                <button onclick="setReportFilter('all')" style="flex:1; padding: 8px; border-radius: 8px; border: 1px solid var(--pink); background: var(--pink); color: white; font-size: 11px;">ทั้งหมด</button>
-            </div>
-
-            <div style="display: flex; gap: 8px; margin-bottom: 15px;">
-                <input type="text" id="searchCustomer" class="search-input" placeholder="🔍 พิมพ์ชื่อลูกค้า..." style="margin-bottom: 0;">
-                <button onclick="triggerSearch()" style="background: var(--blue); color: white; border: none; padding: 0 20px; border-radius: 10px; font-weight: bold; white-space: nowrap; box-shadow: 0 4px 6px rgba(72, 52, 212, 0.2);">
-                    ค้นหา
-                </button>
-            </div>
-            
-            <div id="customerSummary" style="display:none; background:white; padding:15px; border-radius:15px; margin-bottom:15px; border:1px solid #ffe4e6; box-shadow: 0 4px 10px rgba(0,0,0,0.02);">
-                <div style="font-weight:bold; color:var(--pink); border-bottom:1px solid #eee; padding-bottom:8px; margin-bottom:12px;">👤 <span id="summaryNameDisplay"></span></div>
-                <div style="display:flex; justify-content:space-between; text-align: center;">
-                    <div style="flex:1;"><small style="color:#999">จำนวน</small><br><strong id="summaryCountDisplay" style="color:var(--blue); font-size:18px;">0</strong> พ่วง</div>
-                    <div style="flex:1;"><small style="color:#999">ความชื้นเฉลี่ย</small><br><strong id="summaryMaxMoistDisplay" style="font-size:18px;">0</strong></div>
-                    <div style="flex:1;"><small style="color:#999">ราคาสูงสุด</small><br><strong id="summaryMaxPriceDisplay" style="color:#38a169; font-size:18px;">0</strong></div>
-                </div>
-                <button onclick="copySummaryText()" style="width:100%; padding:12px; border-radius:10px; border:none; background:var(--blue); color:white; font-weight:bold; margin-top:15px; cursor:pointer;">📋 คัดลอกรายงานสรุป (Line)</button>
-            </div>
-
-            <div style="overflow-x:auto; background: white; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);">
-                <table style="width:100%; border-collapse:collapse; font-size:12px;">
-                    <thead style="background:#f8f9fa; border-bottom: 2px solid #eee;">
-                        <tr>
-                            <th style="padding:12px 8px; text-align: left;">วันที่</th>
-                            <th style="padding:12px 8px; text-align: left;">ลูกค้า<br><span style="font-size:10px; color:#a0aec0; font-weight:normal;">ประเภท/ทะเบียน</span></th>
-                            <th style="padding:12px 8px; text-align: right;">น้ำหนัก</th>
-                            <th style="padding:12px 8px; text-align: center;">ชื้น</th>
-                            <th style="padding:12px 8px; text-align: right;">ราคา</th>
-                            <th style="padding:12px 8px; text-align: center;">จัดการ</th>
-                        </tr>
-                    </thead>
-                    <tbody id="documentListBody"></tbody>
-                </table>
-            </div>
+        <div class="chart-container" style="position: relative">
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              margin-bottom: 15px;
+            "
+          >
+            <h3 style="margin: 0; font-size: 14px">🌽 สัดส่วนคุณภาพข้าวโพด</h3>
+            <select
+              id="doughnutFilter"
+              onchange="updateDoughnutChart()"
+              style="
+                padding: 4px 8px;
+                border-radius: 8px;
+                border: 1px solid #e2e8f0;
+                font-size: 11px;
+                outline: none;
+                background: #f8fafc;
+                color: #4a5568;
+                cursor: pointer;
+              "
+            >
+              <option value="all">ทั้งหมด</option>
+              <option value="day">วันนี้</option>
+              <option value="week">สัปดาห์นี้</option>
+              <option value="year">ปีนี้</option>
+            </select>
+          </div>
+          <div
+            style="
+              position: relative;
+              height: 180px;
+              width: 100%;
+              display: flex;
+              justify-content: center;
+            "
+          >
+            <canvas id="qualityChart"></canvas>
+          </div>
         </div>
+
+        <div class="chart-container">
+          <h3 style="margin: 0 0 15px 0; font-size: 14px">
+            ⚖️ ปริมาณน้ำหนัก (ตัน) รายเดือน
+          </h3>
+          <canvas id="weightChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3 style="margin: 0 0 15px 0; font-size: 14px">
+            💰 ยอดเงินรับซื้อ (บาท) รายเดือน
+          </h3>
+          <canvas id="amountChart"></canvas>
+        </div>
+      </div>
+
+      <div id="report-view" style="display: none; padding: 15px">
+        <div
+          id="filterButtonGroup"
+          style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap"
+        >
+          <button
+            onclick="setReportFilter('1')"
+            style="
+              flex: 1;
+              padding: 8px;
+              border-radius: 8px;
+              border: 1px solid #ddd;
+              background: white;
+              font-size: 11px;
+            "
+          >
+            1 วัน
+          </button>
+          <button
+            onclick="setReportFilter('3')"
+            style="
+              flex: 1;
+              padding: 8px;
+              border-radius: 8px;
+              border: 1px solid #ddd;
+              background: white;
+              font-size: 11px;
+            "
+          >
+            3 วัน
+          </button>
+          <button
+            onclick="setReportFilter('7')"
+            style="
+              flex: 1;
+              padding: 8px;
+              border-radius: 8px;
+              border: 1px solid #ddd;
+              background: white;
+              font-size: 11px;
+            "
+          >
+            7 วัน
+          </button>
+          <button
+            onclick="setReportFilter('30')"
+            style="
+              flex: 1;
+              padding: 8px;
+              border-radius: 8px;
+              border: 1px solid #ddd;
+              background: white;
+              font-size: 11px;
+            "
+          >
+            เดือน
+          </button>
+          <button
+            onclick="setReportFilter('365')"
+            style="
+              flex: 1;
+              padding: 8px;
+              border-radius: 8px;
+              border: 1px solid #ddd;
+              background: white;
+              font-size: 11px;
+            "
+          >
+            ปี
+          </button>
+          <button
+            onclick="setReportFilter('all')"
+            style="
+              flex: 1;
+              padding: 8px;
+              border-radius: 8px;
+              border: 1px solid var(--pink);
+              background: var(--pink);
+              color: white;
+              font-size: 11px;
+            "
+          >
+            ทั้งหมด
+          </button>
+        </div>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 15px">
+          <input
+            type="text"
+            id="searchCustomer"
+            class="search-input"
+            placeholder="🔍 พิมพ์ชื่อลูกค้า..."
+            style="margin-bottom: 0"
+          />
+          <button
+            onclick="triggerSearch()"
+            style="
+              background: var(--blue);
+              color: white;
+              border: none;
+              padding: 0 20px;
+              border-radius: 10px;
+              font-weight: bold;
+              white-space: nowrap;
+              box-shadow: 0 4px 6px rgba(72, 52, 212, 0.2);
+            "
+          >
+            ค้นหา
+          </button>
+        </div>
+
+        <div
+          id="customerSummary"
+          style="
+            display: none;
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #ffe4e6;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.02);
+          "
+        >
+          <div
+            style="
+              font-weight: bold;
+              color: var(--pink);
+              border-bottom: 1px solid #eee;
+              padding-bottom: 8px;
+              margin-bottom: 12px;
+            "
+          >
+            👤 <span id="summaryNameDisplay"></span>
+          </div>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              text-align: center;
+            "
+          >
+            <div style="flex: 1">
+              <small style="color: #999">จำนวน</small><br /><strong
+                id="summaryCountDisplay"
+                style="color: var(--blue); font-size: 18px"
+                >0</strong
+              >
+              พ่วง
+            </div>
+            <div style="flex: 1">
+              <small style="color: #999">ความชื้นเฉลี่ย</small><br /><strong
+                id="summaryMaxMoistDisplay"
+                style="font-size: 18px"
+                >0</strong
+              >
+            </div>
+            <div style="flex: 1">
+              <small style="color: #999">ราคาสูงสุด</small><br /><strong
+                id="summaryMaxPriceDisplay"
+                style="color: #38a169; font-size: 18px"
+                >0</strong
+              >
+            </div>
+          </div>
+          <button
+            onclick="copySummaryText()"
+            style="
+              width: 100%;
+              padding: 12px;
+              border-radius: 10px;
+              border: none;
+              background: var(--blue);
+              color: white;
+              font-weight: bold;
+              margin-top: 15px;
+              cursor: pointer;
+            "
+          >
+            📋 คัดลอกรายงานสรุป (Line)
+          </button>
+        </div>
+
+        <div
+          style="
+            overflow-x: auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+          "
+        >
+          <table
+            style="width: 100%; border-collapse: collapse; font-size: 12px"
+          >
+            <thead style="background: #f8f9fa; border-bottom: 2px solid #eee">
+              <tr>
+                <th style="padding: 12px 8px; text-align: left">วันที่</th>
+                <th style="padding: 12px 8px; text-align: left">
+                  ลูกค้า<br /><span
+                    style="font-size: 10px; color: #a0aec0; font-weight: normal"
+                    >ประเภท/ทะเบียน</span
+                  >
+                </th>
+                <th style="padding: 12px 8px; text-align: right">น้ำหนัก</th>
+                <th style="padding: 12px 8px; text-align: center">ชื้น</th>
+                <th style="padding: 12px 8px; text-align: right">ราคา</th>
+                <th style="padding: 12px 8px; text-align: center">จัดการ</th>
+              </tr>
+            </thead>
+            <tbody id="documentListBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <nav class="bottom-nav">
-        <button id="nav-dash" class="nav-item active" onclick="switchView('dashboard')"><span>📊</span>Dashboard</button>
-        <button class="nav-item" onclick="openEntryModal()" style="background: var(--pink); color: white; width: 50px; height: 50px; border-radius: 50%; margin-top: -25px; box-shadow: 0 4px 10px rgba(231, 60, 126, 0.3); font-size: 28px; line-height: 50px;">
-            <span style="vertical-align: middle;">+</span>
-        </button>
-        <button id="nav-report" class="nav-item" onclick="switchView('report')"><span>📄</span>เอกสาร</button>
+      <button
+        id="nav-dash"
+        class="nav-item active"
+        onclick="switchView('dashboard')"
+      >
+        <span>📊</span>Dashboard
+      </button>
+      <button
+        class="nav-item"
+        onclick="openEntryModal()"
+        style="
+          background: var(--pink);
+          color: white;
+          width: 50px;
+          height: 50px;
+          border-radius: 50%;
+          margin-top: -25px;
+          box-shadow: 0 4px 10px rgba(231, 60, 126, 0.3);
+          font-size: 28px;
+          line-height: 50px;
+        "
+      >
+        <span style="vertical-align: middle">+</span>
+      </button>
+      <button id="nav-report" class="nav-item" onclick="switchView('report')">
+        <span>📄</span>เอกสาร
+      </button>
     </nav>
 
     <div id="entryModal" class="modal">
-        <div class="modal-content">
-            <h3 style="margin-top:0;">📝 บันทึกข้อมูลใหม่</h3>
-            <div class="form-group">
-                <label>ชื่อลูกค้า</label>
-                <input type="text" id="mCustomer" class="search-input" list="customerList">
-                <datalist id="customerList"></datalist>
-            </div>
-            
-            <div class="form-group">
-                <label>ช่องทางการซื้อ</label>
-                <select id="mChannel" class="search-input">
-                    <option value="หน้าบ้าน">🏠 หน้าบ้าน</option>
-                    <option value="ปั้ว">🤝 ปั้ว</option>
-                    <option value="โอนตั๋ว">🎫 โอนตั๋ว</option>
-                </select>
-            </div>
-
-            <div style="margin-bottom: 15px;">
-                <label style="display:flex; align-items:center; gap:8px; font-size:14px; color:#636e72;">
-                    <input type="checkbox" id="enableTruck" onchange="toggleTruckInput()"> 🚛 ระบุประเภทรถ/เลขทะเบียน
-                </label>
-                <div id="truckSection" style="display:none; margin-top:10px;">
-                    <input type="text" id="mTruck" class="search-input" placeholder="เช่น รถพ่วง 1กข-2345">
-                </div>
-            </div>
-
-            <div style="display: flex; justify-content: space-around; background: #fff5f7; padding: 12px; border-radius: 12px; margin-bottom: 15px; border: 1px solid #ffe4e6;">
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:13px; color:#4a5568;">🍂 เม็ดแตก</span>
-                    <label class="switch"><input type="checkbox" id="mBroken"><span class="slider"></span></label>
-                </div>
-                <div style="display:flex; align-items:center; gap:8px;">
-                    <span style="font-size:13px; color:#4a5568;">🍄 เม็ดรา</span>
-                    <label class="switch"><input type="checkbox" id="mMolded"><span class="slider"></span></label>
-                </div>
-            </div>
-
-            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <div class="form-group"><label>น้ำหนัก (ตัน)</label><input type="number" id="mWeight" class="search-input" step="0.01"></div>
-                <div class="form-group"><label>ความชื้น (%)</label><input type="number" id="mMoist" class="search-input" step="0.1"></div>
-            </div>
-            <div class="form-group"><label>ราคาต่อตัน (บาท)</label><input type="number" id="mPrice" class="search-input"></div>
-            
-            <button onclick="saveData()" id="saveBtn" style="width:100%; padding:15px; border-radius:12px; border:none; background:var(--pink); color:white; font-weight:bold; font-size:16px; cursor:pointer;">💾 บันทึกข้อมูล</button>
-            <button onclick="closeEntryModal()" style="width:100%; padding:10px; margin-top:10px; border:none; background:none; color:#999; cursor:pointer;">ยกเลิก</button>
+      <div class="modal-content">
+        <h3 style="margin-top: 0">📝 บันทึกข้อมูลใหม่</h3>
+        <div class="form-group">
+          <label>ชื่อลูกค้า</label>
+          <input
+            type="text"
+            id="mCustomer"
+            class="search-input"
+            list="customerList"
+          />
+          <datalist id="customerList"></datalist>
         </div>
+
+        <div class="form-group">
+          <label>ช่องทางการซื้อ</label>
+          <select id="mChannel" class="search-input">
+            <option value="หน้าบ้าน">🏠 หน้าบ้าน</option>
+            <option value="ปั้ว">🤝 ปั้ว</option>
+            <option value="โอนตั๋ว">🎫 โอนตั๋ว</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 15px">
+          <label
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              font-size: 14px;
+              color: #636e72;
+            "
+          >
+            <input
+              type="checkbox"
+              id="enableTruck"
+              onchange="toggleTruckInput()"
+            />
+            🚛 ระบุประเภทรถ/เลขทะเบียน
+          </label>
+          <div id="truckSection" style="display: none; margin-top: 10px">
+            <input
+              type="text"
+              id="mTruck"
+              class="search-input"
+              placeholder="เช่น รถพ่วง 1กข-2345"
+            />
+          </div>
+        </div>
+
+        <div
+          style="
+            display: flex;
+            justify-content: space-around;
+            background: #fff5f7;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ffe4e6;
+          "
+        >
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 13px; color: #4a5568">🍂 เม็ดแตก</span>
+            <label class="switch"
+              ><input type="checkbox" id="mBroken" /><span class="slider"></span
+            ></label>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span style="font-size: 13px; color: #4a5568">🍄 เม็ดรา</span>
+            <label class="switch"
+              ><input type="checkbox" id="mMolded" /><span class="slider"></span
+            ></label>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px">
+          <div class="form-group">
+            <label>น้ำหนัก (ตัน)</label
+            ><input
+              type="number"
+              id="mWeight"
+              class="search-input"
+              step="0.01"
+            />
+          </div>
+          <div class="form-group">
+            <label>ความชื้น (%)</label
+            ><input type="number" id="mMoist" class="search-input" step="0.1" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>ราคาต่อตัน (บาท)</label
+          ><input type="number" id="mPrice" class="search-input" />
+        </div>
+
+        <button
+          onclick="saveData()"
+          id="saveBtn"
+          style="
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: none;
+            background: var(--pink);
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+          "
+        >
+          💾 บันทึกข้อมูล
+        </button>
+        <button
+          onclick="closeEntryModal()"
+          style="
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            background: none;
+            color: #999;
+            cursor: pointer;
+          "
+        >
+          ยกเลิก
+        </button>
+      </div>
     </div>
 
-    <div id="captureArea" style="position: absolute; left: -9999px; width: 400px; padding: 30px; background: white; font-family: 'Sarabun';"></div>
-
-    <script>
-        const SCRIPT_URL = "https://script.google.com/macros/s/AKfycby5ON_vODh0U8_fxGkSK4mQBOuRgk3t-enau3DsDoJsWn2INepoc8AOB5dmkgrQiRrz_A/exec"; 
-        let db = [];
-        let charts = {};
-        let currentReportFilter = 'all';
-
-        // 🟢 เริ่มต้นระบบ
-        window.onload = async () => {
-            await loadData();
-            initCharts();
-            document.getElementById('splash').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('splash').style.display = 'none';
-                document.getElementById('main-content').style.display = 'block';
-                updateDashboard();
-            }, 800);
-        };
-
-        function triggerSearch() {
-            Swal.fire({
-                title: 'กำลังค้นหาข้อมูล...',
-                html: '<span style="color:#a0aec0; font-size:14px;">โปรดรอสักครู่ ระบบกำลังประมวลผล</span>',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-            
-            // หน่วงเวลา 0.4 วินาทีให้เห็น Effect โหลดดิ้ง และป้องกันหน้าเว็บกระตุก
-            setTimeout(() => {
-                currentDisplayLimit = 50; // รีเซ็ตการดูข้อมูลให้เริ่มที่ 50 รายการแรกใหม่
-                renderDocumentList();
-                Swal.close();
-            }, 400);
-        }
-
-        function loadMore() {
-            currentDisplayLimit += 50; // เพิ่มลิมิตทีละ 50
-            renderDocumentList();      // วาดตารางใหม่
-        }
-
-        async function loadData() {
-            try {
-                const res = await fetch(SCRIPT_URL + "?action=load");
-                db = await res.json();
-                updateCustomerDatalist();
-            } catch (e) { console.error("Data Load Error", e); }
-        }
-
-        function updateCustomerDatalist() {
-            const list = [...new Set(db.map(i => i.customer))];
-            document.getElementById('customerList').innerHTML = list.map(c => `<option value="${c}">`).join('');
-        }
-
-        // 🚛 ฟังก์ชันเปิด-ปิด ช่องพิมพ์รถ
-        function toggleTruckInput() {
-            const isChecked = document.getElementById('enableTruck').checked;
-            document.getElementById('truckSection').style.display = isChecked ? 'block' : 'none';
-        }
-
-        // 📊 ระบบกราฟ
-        function initCharts() {
-            const opt = { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } };
-            charts.quality = new Chart(document.getElementById('qualityChart'), {
-                type: 'doughnut',
-                data: { 
-                    labels: ['สด (>17.5%)', 'แห้ง (≤17.5%)', 'แตก', 'รา'], 
-                    datasets: [{ data: [0, 0, 0, 0], backgroundColor: ['#00b894', '#fdcb6e', '#e17055', '#2d3436'], borderWidth: 0, hoverOffset: 4 }] 
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: {font:{family:'Sarabun', size:11}, boxWidth: 12} } }, cutout: '70%' }
-            });
-            charts.weight = new Chart(document.getElementById('weightChart'), {
-                type: 'bar',
-                data: { labels: [], datasets: [{ label: 'ตัน', data: [], backgroundColor: '#4834d4', borderRadius: 5 }] },
-                options: opt
-            });
-            charts.money = new Chart(document.getElementById('amountChart'), {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: 'บาท', data: [], borderColor: '#ff6b6b', fill: true, backgroundColor: 'rgba(255, 107, 107, 0.1)', tension: 0.3 }] },
-                options: opt
-            });
-        }
-
-        function updateDashboard() {
-            const groups = {};
-            db.forEach(item => {
-                const d = new Date((item.date || "").replace(" ", "T"));
-                if (isNaN(d)) return;
-                const key = `${d.getFullYear()}-${(d.getMonth()+1).toString().padStart(2,'0')}`;
-                if (!groups[key]) groups[key] = { weight: 0, amount: 0 };
-                groups[key].weight += parseFloat(item.weight || 0);
-                groups[key].amount += (parseFloat(item.weight || 0) * parseFloat(item.price || 0));
-            });
-
-            const labels = Object.keys(groups).sort();
-            if(charts.weight) {
-                charts.weight.data.labels = labels;
-                charts.weight.data.datasets[0].data = labels.map(k => groups[k].weight.toFixed(2));
-                charts.weight.update();
-            }
-
-            if(charts.money) {
-                charts.money.data.labels = labels;
-                charts.money.data.datasets[0].data = labels.map(k => groups[k].amount);
-                charts.money.update();
-            }
-
-            const now = new Date().toLocaleDateString('en-CA');
-            const todayData = db.filter(i => (i.date || "").includes(now));
-            if(document.getElementById('stat-day-count')) document.getElementById('stat-day-count').innerText = todayData.length;
-            if(document.getElementById('stat-day-avg')) document.getElementById('stat-day-avg').innerText = todayData.length > 0 ? (todayData.reduce((s,i)=>s+parseFloat(i.moist || 0),0)/todayData.length).toFixed(1) : "0";
-            if(document.getElementById('stat-total-count')) document.getElementById('stat-total-count').innerText = db.length;
-            
-            const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-            const weekData = db.filter(i => {
-                let d = new Date((i.date || "").replace(" ", "T"));
-                return !isNaN(d) && d >= weekAgo;
-            });
-            if(document.getElementById('stat-week-count')) document.getElementById('stat-week-count').innerText = weekData.length;
-
-            // ✅ วิธีแก้บั๊กกราฟโดนัทไม่ขึ้น: สั่งให้หน่วงเวลา 0.1 วินาที รอให้หน้าจอโหลดเสร็จก่อนค่อยวาด
-            if (typeof updateDoughnutChart === 'function') {
-                setTimeout(() => { 
-                    updateDoughnutChart(); 
-                }, 100); 
-            }
-        }
-
-        // ฟังก์ชันคำนวณกราฟโดนัท (อัปเดตเกณฑ์ความชื้น 17.5%)
-        function updateDoughnutChart() {
-            if (!charts.quality || !document.getElementById('doughnutFilter')) return;
-
-            const filter = document.getElementById('doughnutFilter').value;
-            const now = new Date();
-            let freshWt = 0, dryWt = 0, brokenWt = 0, moldedWt = 0;
-
-            db.forEach(i => {
-                let d = new Date((i.date || "").replace(" ", "T"));
-                if (isNaN(d)) return;
-                
-                let include = false;
-                if(filter === 'all') include = true;
-                else if(filter === 'day') { if(d.toLocaleDateString() === now.toLocaleDateString()) include = true; }
-                else if(filter === 'week') { if(((now - d) / (1000*60*60*24)) <= 7) include = true; }
-                else if(filter === 'year') { if(d.getFullYear() === now.getFullYear()) include = true; }
-
-                if(include) {
-                    let w = parseFloat(i.weight || 0);
-                    let m = parseFloat(i.moist || 0);
-                    
-                    // เกณฑ์: ชื้น > 17.5 = สด / ชื้น <= 17.5 = แห้ง
-                    if(m > 17.5) freshWt += w; else dryWt += w;
-                    if(i.isBroken === 'ใช่') brokenWt += w;
-                    if(i.isMolded === 'ใช่') moldedWt += w;
-                }
-            });
-
-            // อัปเดตข้อมูลลงกราฟ (แปลงเป็น Number ป้องกัน Error)
-            charts.quality.data.datasets[0].data = [
-                Number(freshWt.toFixed(2)), 
-                Number(dryWt.toFixed(2)), 
-                Number(brokenWt.toFixed(2)), 
-                Number(moldedWt.toFixed(2))
-            ];
-            charts.quality.update();
-        }
-
-        // 📄 ระบบรายงาน (Report)
-        function setReportFilter(days) {
-            currentReportFilter = days;
-            document.querySelectorAll('#filterButtonGroup button').forEach(btn => {
-                if (btn.getAttribute('onclick').includes(`'${days}'`)) {
-                    btn.style.background = 'var(--pink)'; btn.style.color = 'white';
-                } else {
-                    btn.style.background = 'white'; btn.style.color = '#666';
-                }
-            });
-            renderDocumentList();
-        }
-
-        let currentDisplayLimit = 50; // กำหนดตัวแปรสำหรับจำกัดแถว (แบ่งหน้า)
-
-        function triggerSearch() {
-            Swal.fire({
-                title: 'กำลังค้นหา...',
-                text: 'โปรดรอสักครู่',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-            
-            // หน่วงเวลาให้แอปได้พักหายใจ แล้วค่อยดึงข้อมูล
-            setTimeout(() => {
-                currentDisplayLimit = 50; // รีเซ็ตการดูข้อมูลให้เริ่มที่ 50 รายการแรกใหม่
-                renderDocumentList();
-                Swal.close();
-            }, 300);
-        }
-
-        function loadMore() {
-            currentDisplayLimit += 50; // เพิ่มการแสดงผลทีละ 50 รายการ
-            renderDocumentList();
-        }
-
-        function renderDocumentList() {
-            const s = document.getElementById('searchCustomer').value.toLowerCase().trim();
-            const now = new Date();
-            const tbody = document.getElementById('documentListBody');
-
-            // 1. กรองและจำ Index ดั้งเดิม (แก้ปัญหา O(N^2) ไม่ให้ค้าง)
-            let filtered = db.map((item, idx) => ({ item: item, originalIndex: idx }))
-            .filter(obj => {
-                const i = obj.item;
-                const matchesSearch = (i.customer || "").toString().toLowerCase().includes(s);
-                if (currentReportFilter === 'all') return matchesSearch;
-                
-                let d = new Date((i.date || "").replace(" ", "T"));
-                if (isNaN(d)) return matchesSearch;
-                const diff = Math.ceil(Math.abs(now - d) / (1000 * 60 * 60 * 24));
-                return matchesSearch && (diff <= parseInt(currentReportFilter));
-            });
-
-            // 2. จัดการกล่องสรุปข้อมูล (Summary Card)
-            const summaryCard = document.getElementById('customerSummary');
-            if (s !== "" && filtered.length > 0) {
-                summaryCard.style.display = 'block';
-                document.getElementById('summaryNameDisplay').innerText = s;
-                document.getElementById('summaryCountDisplay').innerText = filtered.length;
-                const avgM = (filtered.reduce((sum, obj) => sum + parseFloat(obj.item.moist || 0), 0) / filtered.length).toFixed(1);
-                document.getElementById('summaryMaxMoistDisplay').innerText = avgM + "%";
-                const maxP = Math.max(...filtered.map(obj => parseFloat(obj.item.price || 0)));
-                document.getElementById('summaryMaxPriceDisplay').innerText = "฿" + maxP.toLocaleString();
-            } else {
-                summaryCard.style.display = 'none';
-            }
-
-            // 3. ระบบแบ่งหน้า (Pagination)
-            let displayData = filtered.slice().reverse(); // เรียงใหม่ไปเก่า
-            let paginatedData = displayData.slice(0, currentDisplayLimit); // ตัดข้อมูลตาม Limit (ทีละ 50)
-
-            if (paginatedData.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:30px; color:#999;">ไม่พบข้อมูล</td></tr>';
-                return;
-            }
-
-            // 4. สร้าง HTML ทีละแถว (ทำงานแค่ 50 รอบ ไม่ใช่พันรอบ!)
-            let html = '';
-            paginatedData.forEach(obj => {
-                let i = obj.item;
-                let realIndex = obj.originalIndex;
-                let d = new Date((i.date || "").replace(" ", "T"));
-                let dStr = isNaN(d) ? (i.date || "").split('T')[0] : d.toLocaleDateString('th-TH', {day:'2-digit', month:'2-digit'});
-                
-                html += `<tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:12px 8px;">${dStr}</td>
-                    <td style="padding:12px 8px;">
-                        <b style="color:#2d3748; font-size:13px;">${i.customer || '-'}</b><br>
-                        <span style="font-size:10px; background:#edf2f7; color:#4a5568; padding:2px 6px; border-radius:4px; display:inline-block; margin-top:2px;">
-                            🚛 ${i.truck && i.truck !== '-' ? i.truck : 'ไม่ระบุ'}
-                        </span>
-                    </td>
-                    <td style="padding:12px 8px; text-align:right; color:var(--blue); font-weight:bold;">${parseFloat(i.weight||0).toFixed(2)}</td>
-                    <td style="padding:12px 8px; text-align:center;">${i.moist || 0}%</td>
-                    <td style="padding:12px 8px; text-align:right; font-weight:bold; color: #38a169;">฿${parseFloat(i.price||0).toLocaleString()}</td>
-                    <td style="padding:12px 8px; text-align:center; display:flex; gap:8px; justify-content:center;">
-                        <button onclick="printDocument(${realIndex})" style="border:none; background:none; cursor:pointer; font-size:16px;">🖨️</button>
-                        <button onclick="deleteItem(${realIndex})" style="border:none; background:none; cursor:pointer; font-size:16px;">🗑️</button>
-                    </td>
-                </tr>`;
-            });
-
-            // 5. โค้ดสร้างปุ่มโหลดข้อมูลเพิ่ม
-            if (displayData.length > currentDisplayLimit) {
-                let remaining = displayData.length - currentDisplayLimit;
-                html += `<tr>
-                    <td colspan="6" style="text-align:center; padding:20px; background: #fafcff;">
-                        <button onclick="loadMore()" style="background: white; color: var(--blue); border: 1px solid var(--blue); padding: 8px 24px; border-radius: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(72,52,212,0.1); transition: 0.2s;">
-                            ⬇️ โหลดข้อมูลเก่าเพิ่ม (${remaining} รายการ)
-                        </button>
-                    </td>
-                </tr>`;
-            }
-
-            // คืนค่า HTML ออกสู่หน้าจอทีเดียวจบ
-            tbody.innerHTML = html;
-        }
-
-        // 💾 บันทึกข้อมูล แบบสมบูรณ์
-        async function saveData() {
-            const cust = document.getElementById('mCustomer').value;
-            const weight = document.getElementById('mWeight').value;
-            const price = document.getElementById('mPrice').value;
-            const channel = document.getElementById('mChannel').value;
-            const truck = document.getElementById('enableTruck').checked ? document.getElementById('mTruck').value : "-";
-
-            // ข้ามการบังคับกรอกราคาเมื่อเป็น "โอนตั๋ว"
-            if(!cust || !weight || (channel !== 'โอนตั๋ว' && !price)) {
-                Swal.fire('กรอกข้อมูลไม่ครบ!', 'กรุณาระบุชื่อและข้อมูลให้เรียบร้อย', 'warning');
-                return;
-            }
-            closeEntryModal();
-            Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-
-            const data = {
-                action: "save",
-                type: "รับซื้อ", 
-                truck: truck,
-                customer: cust,
-                weight: weight,
-                moist: document.getElementById('mMoist').value || 0,
-                price: price || 0,
-                channel: channel,
-                isBroken: document.getElementById('mBroken').checked ? "ใช่" : "ไม่ใช่",
-                isMolded: document.getElementById('mMolded').checked ? "ใช่" : "ไม่ใช่",
-                date: new Date().toISOString()
-            };
-
-            try {
-                await fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify(data) });
-                db.push(data);
-                updateDashboard();
-                renderDocumentList();
-                Swal.fire('สำเร็จ!', 'บันทึกข้อมูลเรียบร้อยแล้ว', 'success');
-            } catch (e) { Swal.fire('Error!', 'ไม่สามารถบันทึกได้', 'error'); }
-        }
-
-        // 🗑️ ระบบลบข้อมูลด้วยรหัสผ่าน C2tech1234
-        function deleteItem(index) {
-            const item = db[index];
-            Swal.fire({
-                title: 'ยืนยันการลบ?',
-                text: `ชื่อลูกค้า: ${item.customer}`,
-                input: 'password',
-                showCancelButton: true,
-                confirmButtonText: 'ลบข้อมูล',
-                confirmButtonColor: '#e53e3e',
-                preConfirm: (password) => {
-                    if (password === 'C2tech1234') return true;
-                    Swal.showValidationMessage('รหัสผ่านไม่ถูกต้อง!');
-                    return false;
-                }
-            }).then(async (result) => {
-                if (result.isConfirmed) {
-                    Swal.fire({ title: 'กำลังลบ...', didOpen: () => Swal.showLoading() });
-                    await fetch(SCRIPT_URL, { method: "POST", mode: "no-cors", body: JSON.stringify({action: "delete", date: item.date}) });
-                    db.splice(index, 1);
-                    updateDashboard();
-                    renderDocumentList();
-                    Swal.fire('ลบรายการสำเร็จ!', '', 'success');
-                }
-            });
-        }
-
-        // 📋 คัดลอกสรุป Line
-        function copySummaryText() {
-            const name = document.getElementById('summaryNameDisplay').innerText;
-            const count = document.getElementById('summaryCountDisplay').innerText;
-            const avgM = document.getElementById('summaryMaxMoistDisplay').innerText;
-            
-            let totals = {};
-            db.forEach(i => { if(i.customer) totals[i.customer] = (totals[i.customer] || 0) + parseFloat(i.weight || 0); });
-            let rank = Object.entries(totals).sort((a,b) => b[1]-a[1]).slice(0,5);
-            let rankTxt = "\n🏆 5 อันดับยอดสูงสุด:\n" + rank.map((r,idx) => ` ${idx+1}. ${r[0]} (${r[1].toFixed(2)} ตัน)`).join('\n');
-
-            const txt = `📌 *สรุปรายงาน GoldKernel*\nลูกค้า: ${name}\nจำนวน: ${count} พ่วง\nความชื้นเฉลี่ย: ${avgM}\n${rankTxt}\n------------------\n✅ ข้อมูลถูกต้องแม่นยำ`;
-            navigator.clipboard.writeText(txt);
-            Swal.fire('คัดลอกแล้ว!', 'นำไปวางใน Line ได้เลย', 'success');
-        }
-
-        // 🖨️ ระบบ Print เอกสาร (html2canvas เดิม)
-        function printDocument(index) {
-            const i = db[index];
-            const area = document.getElementById('captureArea');
-            const d = new Date((i.date || "").replace(" ", "T"));
-            const dStr = isNaN(d) ? i.date : d.toLocaleDateString('th-TH');
-            const tStr = isNaN(d) ? "" : d.toLocaleTimeString('th-TH') + ' น.';
-
-            area.innerHTML = `
-                <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:10px; margin-bottom:20px;">
-                    <h2 style="margin:0;">ใบชั่งน้ำหนักสินค้า</h2>
-                    <h3 style="margin:5px 0;">ธนกรการเกษตร 99 (GoldKernel)</h3>
-                </div>
-                <div style="font-size:16px; line-height:2;">
-                    <p><b>วันที่:</b> ${dStr} ${tStr}</p>
-                    <p><b>ชื่อลูกค้า:</b> ${i.customer}</p>
-                    <p><b>ประเภทรถ:</b> ${i.truck || '-'}</p>
-                    <p><b>ช่องทาง:</b> ${i.channel}</p>
-                    <p><b>น้ำหนักสินค้า:</b> <span style="font-size:22px;">${parseFloat(i.weight||0).toFixed(2)}</span> ตัน</p>
-                    <p><b>ความชื้น:</b> ${i.moist || 0}%</p>
-                    <p><b>ราคา/ตัน:</b> ฿${parseFloat(i.price||0).toLocaleString()}</p>
-                    <p><b>เม็ดแตก:</b> ${i.isBroken || 'ไม่ใช่'} | <b>เม็ดรา:</b> ${i.isMolded || 'ไม่ใช่'}</p>
-                </div>
-                <div style="margin-top:40px; border-top:1px dashed #000; padding-top:10px; text-align:center;">
-                    <p>ขอบคุณที่ใช้บริการครับ 🙏</p>
-                </div>
-            `;
-            html2canvas(area).then(canvas => {
-                const link = document.createElement('a');
-                link.download = `Bill_${i.customer}.png`;
-                link.href = canvas.toDataURL();
-                link.click();
-            });
-        }
-
-        // เมนู & หน้าต่าง
-        function switchView(v) {
-            document.getElementById('dashboard-view').style.display = v === 'dashboard' ? 'block' : 'none';
-            document.getElementById('report-view').style.display = v === 'report' ? 'block' : 'none';
-            document.getElementById('nav-dash').classList.toggle('active', v === 'dashboard');
-            document.getElementById('nav-report').classList.toggle('active', v === 'report');
-            if(v === 'report') renderDocumentList();
-            toggleSidebar(false);
-        }
-        function toggleSidebar(show) {
-            const s = document.getElementById('sidebar');
-            const o = document.getElementById('overlay');
-            if(show === undefined) { s.classList.toggle('active'); o.classList.toggle('active'); }
-            else { s.classList.remove('active'); o.classList.remove('active'); }
-        }
-        function openEntryModal() { document.getElementById('entryModal').style.display = 'block'; }
-        function closeEntryModal() { 
-            document.getElementById('entryModal').style.display = 'none'; 
-            document.getElementById('enableTruck').checked = false;
-            document.getElementById('truckSection').style.display = 'none';
-            document.getElementById('mTruck').value = '';
-            document.getElementById('mBroken').checked = false;
-            document.getElementById('mMolded').checked = false;
-            document.getElementById('mCustomer').value = '';
-            document.getElementById('mWeight').value = '';
-            document.getElementById('mMoist').value = '';
-            document.getElementById('mPrice').value = '';
-        }
-        window.onclick = function(event) {
-            const modal = document.getElementById('entryModal');
-            // ถ้าจุดที่คลิกคือตัวพื้นหลังของ modal (ไม่ใช่กล่องสีขาวด้านใน)
-            if (event.target === modal) {
-                closeEntryModal();
-            }
-        };
-    </script>
-</body>
+    <div
+      id="captureArea"
+      style="
+        position: absolute;
+        left: -9999px;
+        width: 400px;
+        padding: 30px;
+        background: white;
+        font-family: &quot;Sarabun&quot;;
+      "
+    ></div>
+    <script src="script.js"></script>
+  </body>
 </html>
