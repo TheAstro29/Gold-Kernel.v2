@@ -135,6 +135,14 @@ body {
   box-shadow: 0 15px 30px rgba(0, 0, 0, 0.08);
 }
 
+.swal2-container {
+    z-index: 10000 !important; 
+}
+
+
+#entryModal {
+    z-index: 9999; 
+}
 .chart-container {
   background: white;
   margin: 15px;
@@ -235,18 +243,29 @@ input:checked + .slider:before {
   z-index: 1000;
 }
 .nav-item {
-  border: none;
-  background: none;
-  color: #636e72;
-  font-size: 11px;
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #a0aec0; 
   cursor: pointer;
+  transition: all 0.3s ease;  
+  font-family: 'Sarabun', sans-serif;
+  font-size: 15px;      
+  font-weight: 600;      
+  gap: 4px;             
 }
 .nav-item.active {
-  color: var(--pink);
-  font-weight: bold;
+  color: var(--blue);    
+  transform: scale(1.1); 
+}
+
+.nav-item i, .nav-item span {
+  font-size: 20px;       /* ปรับขนาดไอคอนให้สมดุลกับตัวหนังสือ */
+  margin-bottom: 2px;
 }
 
 .modal {
@@ -271,4 +290,99 @@ input:checked + .slider:before {
   position: relative;
   /* ✅ เพิ่มบรรทัดนี้: หน่วงเวลา 0.3 วินาที */
   animation: modalScaleIn 0.3s ease-out;
+}
+/* สไตล์ปุ่ม 3D */
+.btn-3d {
+  position: relative;
+  display: inline-block;
+  padding: 15px 30px;
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  text-align: center;
+  text-decoration: none;
+  background-color: var(--pink); /* สีชมพูหลักของคุณ */
+  border: none;
+  border-radius: 12px;
+  
+  /* สร้างความหนาด้านล่างปุ่ม */
+  box-shadow: 0 6px 0 #dd5d9d, 0 12px 20px rgba(0, 0, 0, 0.2);
+  
+  transition: all 0.1s ease;
+  cursor: pointer;
+  width: 100%;
+}
+
+/* เอฟเฟกต์ตอนเอาเมาส์ไปชี้ (Hover) */
+.btn-3d:hover {
+  background-color: #ff5e91;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 0 #e66aa8, 0 15px 25px rgba(0, 0, 0, 0.2);
+}
+
+/* เอฟเฟกต์ตอนกด (Active/Pressed) */
+.btn-3d:active {
+  transform: translateY(4px); /* ปุ่มยุบลง */
+  box-shadow: 0 2px 0 #e66aa8, 0 5px 10px rgba(0, 0, 0, 0.2); /* ลดความหนาลง */
+}
+
+/* ปรับสีปุ่มสำหรับสีน้ำเงิน (ถ้าต้องการใช้แยก) */
+.btn-3d-blue {
+  background-color: var(--blue);
+  box-shadow: 0 6px 0 #1a4a8d, 0 12px 20px rgba(0, 0, 0, 0.2);
+}
+.btn-3d-blue:hover {
+  background-color: #3b82f6;
+  box-shadow: 0 8px 0 #1a4a8d, 0 15px 25px rgba(0, 0, 0, 0.2);
+}
+.btn-3d-blue:active {
+  box-shadow: 0 2px 0 #1a4a8d, 0 5px 10px rgba(0, 0, 0, 0.2);
+}
+/* ปุ่มวงกลม 3D กลางแถบเมนู */
+.nav-fab-3d {
+  position: relative;
+  width: 60px; /* ขยายขนาดให้เด่นขึ้นเล็กน้อย */
+  height: 60px;
+  background: var(--pink);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-top: -30px; /* ดันปุ่มขึ้นไปครึ่งหนึ่งของความสูง */
+  
+  /* สร้างมิติ 3D ด้วย Shadow 3 ชั้น */
+  /* 1. ส่วนฐานปุ่มด้านล่าง (สีชมพูเข้ม) 2. เงาฟุ้งๆ ด้านนอก 3. แสงเงาเบาๆ */
+  box-shadow: 
+    0 5px 0 #d63384, 
+    0 10px 20px rgba(231, 60, 126, 0.4),
+    inset 0 2px 2px rgba(255, 255, 255, 0.3);
+    
+  transition: all 0.1s ease;
+  z-index: 10;
+}
+
+/* เอฟเฟกต์ตอนกด (Active) */
+.nav-fab-3d:active {
+  transform: translateY(3px); /* ปุ่มยุบลง */
+  box-shadow: 
+    0 2px 0 #d63384, 
+    0 5px 10px rgba(231, 60, 126, 0.4),
+    inset 0 1px 1px rgba(255, 255, 255, 0.2);
+}
+
+/* เพิ่มแสงวิ้งๆ ด้านบนปุ่ม */
+.nav-fab-3d::after {
+  content: '';
+  position: absolute;
+  top: 5px;
+  left: 15%;
+  width: 70%;
+  height: 30%;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.4), transparent);
+  border-radius: 50px 50px 20px 20px;
+  pointer-events: none;
 }
