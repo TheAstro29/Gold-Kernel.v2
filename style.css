@@ -399,3 +399,15 @@ input:checked + .slider:before {
     width: 95%;     
   }
 }
+
+button:focus, 
+input:focus, 
+select:focus, 
+textarea:focus {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent; /* ลบสีไฮไลท์สีฟ้าเวลาแตะบนมือถือด้วย */
+}
+
+button:active {
+    outline: none;
+}
