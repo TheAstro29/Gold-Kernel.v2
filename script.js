@@ -15,29 +15,6 @@ window.onload = async () => {
   }, 800);
 };
 
-function triggerSearch() {
-  Swal.fire({
-    title: "กำลังค้นหาข้อมูล...",
-    html: '<span style="color:#a0aec0; font-size:14px;">โปรดรอสักครู่ ระบบกำลังประมวลผล</span>',
-    allowOutsideClick: false,
-    didOpen: () => {
-      Swal.showLoading();
-    },
-  });
-
-  // หน่วงเวลา 0.4 วินาทีให้เห็น Effect โหลดดิ้ง และป้องกันหน้าเว็บกระตุก
-  setTimeout(() => {
-    currentDisplayLimit = 50; // รีเซ็ตการดูข้อมูลให้เริ่มที่ 50 รายการแรกใหม่
-    renderDocumentList();
-    Swal.close();
-  }, 400);
-}
-
-function loadMore() {
-  currentDisplayLimit += 50; // เพิ่มลิมิตทีละ 50
-  renderDocumentList(); // วาดตารางใหม่
-}
-
 async function loadData() {
   try {
     const res = await fetch(SCRIPT_URL + "?action=load");
@@ -364,6 +341,7 @@ function renderDocumentList() {
       <td style="padding:12px 8px; text-align:center;">
           <div style="display:flex; gap:5px; justify-content:center;">
               <button onclick="printDocument(${realIndex})" style="border:none; background:#ebf8ff; color:#3182ce; padding:5px; border-radius:5px; cursor:pointer;">🖨️</button>
+              <button onclick="editItem(${realIndex})" style="border:none; background:#f0fff4; color:#38a169; padding:5px; border-radius:5px; cursor:pointer;">✏️</button>
               <button onclick="deleteItem(${realIndex})" style="border:none; background:#fff5f5; color:#e53e3e; padding:5px; border-radius:5px; cursor:pointer;">🗑️</button>
           </div>
       </td>
@@ -386,7 +364,7 @@ function renderDocumentList() {
   tbody.innerHTML = html;
 }
 
-// 💾 บันทึกข้อมูล แบบสมบูรณ์
+// 💾 บันทึกข้อมูล แบบสมบูรณ์ (รองรับทั้งบันทึกใหม่/บันทึกย้อนหลัง และแก้ไขรายการเดิม)
 async function saveData() {
   // 1. ดึงค่าจากหน้าจอ
   const cust = document.getElementById("mCustomer").value;
@@ -394,6 +372,7 @@ async function saveData() {
   const moistValue = document.getElementById("mMoist").value;
   const price = document.getElementById("mPrice").value;
   const channel = document.getElementById("mChannel") ? document.getElementById("mChannel").value : "หน้าบ้าน";
+  const dateInputValue = document.getElementById("mDate").value;
 
   // ตรวจสอบสถานะทะเบียนรถ
   const truck = document.getElementById("enableTruck").checked
@@ -406,12 +385,24 @@ async function saveData() {
     return;
   }
 
+  // ตรวจสอบวันที่/เวลาที่เลือก (รองรับบันทึกย้อนหลัง) — ถ้าไม่ได้เลือกไว้เลยให้ใช้เวลาปัจจุบัน
+  const chosenDate = dateInputValue ? new Date(dateInputValue) : new Date();
+  if (isNaN(chosenDate.getTime())) {
+    Swal.fire("วันที่ไม่ถูกต้อง!", "กรุณาเลือกวันที่/เวลาให้ถูกต้อง", "warning");
+    return;
+  }
+
+  // เก็บสถานะโหมดแก้ไขไว้ก่อนที่ closeEntryModal() จะรีเซ็ต editingIndex กลับเป็น null
+  const isEditing = editingIndex !== null;
+  const targetIndex = editingIndex;
+  const originalDate = isEditing ? db[targetIndex].date : null;
+
   // 3. ปิดหน้าต่างกรอกข้อมูลทันที (เพื่อให้ Popup แจ้งเตือนไม่โดนทับ)
   closeEntryModal();
 
   // 4. แสดง Loading
   Swal.fire({
-    title: "กำลังบันทึก...",
+    title: isEditing ? "กำลังบันทึกการแก้ไข..." : "กำลังบันทึก...",
     allowOutsideClick: false,
     didOpen: () => Swal.showLoading(),
   });
@@ -422,7 +413,7 @@ async function saveData() {
 
   // 5. เตรียมข้อมูลส่งไปที่ Sheet
   const payload = {
-    action: "save",
+    action: isEditing ? "update" : "save",
     type: autoType,
     truck: truck,
     customer: cust,
@@ -432,61 +423,93 @@ async function saveData() {
     channel: channel,
     isBroken: document.getElementById("mBroken").checked ? "ใช่" : "ไม่ใช่",
     isMolded: document.getElementById("mMolded").checked ? "ใช่" : "ไม่ใช่",
-    date: new Date().toISOString(),
+    date: chosenDate.toISOString(),
   };
+  if (isEditing) payload.originalDate = originalDate;
 
   try {
-    // 6. ส่งข้อมูลไปที่ Google Apps Script
-    await fetch(SCRIPT_URL, {
+    // 6. ส่งข้อมูลไปที่ Google Apps Script แล้วอ่านผลลัพธ์กลับมาตรวจสอบ (กันข้อมูลหน้าจอกับชีตไม่ตรงกัน)
+    const res = await fetch(SCRIPT_URL, {
       method: "POST",
       body: JSON.stringify(payload),
       headers: {
         "Content-Type": "text/plain;charset=utf-8",
       },
     });
+    const text = await res.text();
 
-    // 7. อัปเดตข้อมูลในหน้าเว็บทันที
-    db.push(payload);
-    updateDashboard();
-    renderDocumentList();
-
-    Swal.fire("สำเร็จ!", "บันทึกข้อมูลเรียบร้อยแล้ว", "success");
+    if (isEditing) {
+      if (text.indexOf("Updated") === 0) {
+        db[targetIndex] = payload;
+        updateDashboard();
+        renderDocumentList();
+        Swal.fire("บันทึกการแก้ไขสำเร็จ!", "", "success");
+      } else {
+        Swal.fire("แก้ไขไม่สำเร็จ", "ไม่พบรายการเดิมในชีต หรือเกิดข้อผิดพลาด กรุณารีเฟรชแล้วลองใหม่", "error");
+      }
+    } else {
+      // 7. อัปเดตข้อมูลในหน้าเว็บทันที
+      db.push(payload);
+      updateDashboard();
+      renderDocumentList();
+      Swal.fire("สำเร็จ!", "บันทึกข้อมูลเรียบร้อยแล้ว", "success");
+    }
   } catch (e) {
     console.error("Save Error:", e);
     Swal.fire("Error!", "เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
   }
 }
 
-// 🗑️ ระบบลบข้อมูลด้วยรหัสผ่าน C2tech1234
+// 🗑️ ระบบลบข้อมูล — รหัสผ่านตรวจสอบที่ฝั่งเซิร์ฟเวอร์ (Code.gs) เท่านั้น
+// ไม่เก็บรหัสผ่านไว้ในโค้ดฝั่งหน้าเว็บอีกต่อไป เพราะใครก็เปิดดู source แล้วเห็นรหัสได้
 function deleteItem(index) {
   const item = db[index];
   Swal.fire({
     title: "ยืนยันการลบ?",
     text: `ชื่อลูกค้า: ${item.customer}`,
     input: "password",
+    inputPlaceholder: "รหัสผ่านสำหรับลบข้อมูล",
     showCancelButton: true,
     confirmButtonText: "ลบข้อมูล",
     confirmButtonColor: "#e53e3e",
     preConfirm: (password) => {
-      if (password === "C2tech1234") return true;
-      Swal.showValidationMessage("รหัสผ่านไม่ถูกต้อง!");
-      return false;
+      if (!password) {
+        Swal.showValidationMessage("กรุณากรอกรหัสผ่าน");
+        return false;
+      }
+      return password;
     },
   }).then(async (result) => {
-    if (result.isConfirmed) {
-      Swal.fire({
-        title: "กำลังลบ...",
-        didOpen: () => Swal.showLoading(),
-      });
-      await fetch(SCRIPT_URL, {
+    if (!result.isConfirmed) return;
+    const password = result.value;
+
+    Swal.fire({
+      title: "กำลังลบ...",
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    });
+
+    try {
+      const res = await fetch(SCRIPT_URL, {
         method: "POST",
-        mode: "no-cors",
-        body: JSON.stringify({ action: "delete", date: item.date }),
+        body: JSON.stringify({ action: "delete", date: item.date, password: password }),
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
       });
-      db.splice(index, 1);
-      updateDashboard();
-      renderDocumentList();
-      Swal.fire("ลบรายการสำเร็จ!", "", "success");
+      const text = await res.text();
+
+      if (text.indexOf("Deleted") === 0) {
+        db.splice(index, 1);
+        updateDashboard();
+        renderDocumentList();
+        Swal.fire("ลบรายการสำเร็จ!", "", "success");
+      } else if (text.indexOf("Invalid Password") !== -1) {
+        Swal.fire("รหัสผ่านไม่ถูกต้อง!", "กรุณาลองใหม่อีกครั้ง", "error");
+      } else {
+        Swal.fire("ลบไม่สำเร็จ", "ไม่พบรายการนี้ในชีต หรือเกิดข้อผิดพลาด กรุณารีเฟรชแล้วลองใหม่", "error");
+      }
+    } catch (e) {
+      console.error("Delete Error:", e);
+      Swal.fire("Error!", "เกิดข้อผิดพลาดในการเชื่อมต่อ", "error");
     }
   });
 }
@@ -697,49 +720,6 @@ function printDocument(index) {
   });
 }
 
-// 1. ฟังก์ชันสลับหน้าจอ (แนะนำให้ใช้ชื่อ showView ตามระบบเดิมของคุณ)
-function showView(v) {
-  const dashView = document.getElementById("dashboard-view");
-  const reportView = document.getElementById("report-view");
-
-  if (dashView && reportView) {
-    dashView.style.display = v === "dashboard" ? "block" : "none";
-    reportView.style.display = v === "report" ? "block" : "none";
-  }
-
-  // ปรับสถานะปุ่มเมนูให้เป็น Active
-  const navDash = document.getElementById("nav-dash");
-  const navReport = document.getElementById("nav-report");
-
-  if (navDash) navDash.classList.toggle("active", v === "dashboard");
-  if (navReport) navReport.classList.toggle("active", v === "report");
-
-  // ถ้าไปหน้า Report ให้โหลดรายการข้อมูล
-  if (v === "report") renderDocumentList();
-
-  // ปิดแถบเมนูด้านข้าง
-  toggleSidebar(false);
-}
-
-// 2. ฟังก์ชัน เปิด/ปิด Sidebar (ต้องมีครบทุกเงื่อนไข)
-function toggleSidebar(show) {
-  const s = document.getElementById("sidebar");
-  const o = document.getElementById("overlay");
-
-  if (!s || !o) return; // ป้องกัน Error ถ้าหา Element ไม่เจอ
-
-  if (show === undefined) {
-    s.classList.toggle("active");
-    o.classList.toggle("active");
-  } else if (show === true) {
-    s.classList.add("active");
-    o.classList.add("active");
-  } else {
-    s.classList.remove("active");
-    o.classList.remove("active");
-  }
-}
-
 // เมนู & หน้าต่าง
 function switchView(v) {
   document.getElementById("dashboard-view").style.display =
@@ -755,9 +735,57 @@ function switchView(v) {
   if (v === "report") renderDocumentList();
 }
 
-function openEntryModal() {
+// เก็บ index ของรายการที่กำลังแก้ไขอยู่ (null = โหมดบันทึกรายการใหม่)
+let editingIndex = null;
+
+// แปลง Date object เป็นรูปแบบที่ <input type="datetime-local"> ต้องการ ตามเวลาท้องถิ่นของเครื่อง
+function toLocalDatetimeInputValue(d) {
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// เปิดฟอร์มกรอกข้อมูล — ไม่ส่ง index = บันทึกรายการใหม่ (ตั้งเวลาเป็นปัจจุบัน แก้เป็นย้อนหลังได้)
+// ส่ง index ของรายการเดิม = โหมดแก้ไขรายการนั้น (ดึงข้อมูลเดิมมาแสดงในฟอร์มให้ครบ)
+function openEntryModal(index) {
+  const title = document.getElementById("entryModalTitle");
+  const saveBtn = document.getElementById("saveBtn");
+
+  if (typeof index === "number" && db[index]) {
+    editingIndex = index;
+    const item = db[index];
+    document.getElementById("mCustomer").value = item.customer || "";
+    if (document.getElementById("mChannel")) document.getElementById("mChannel").value = item.channel || "หน้าบ้าน";
+    document.getElementById("mWeight").value = item.weight || "";
+    document.getElementById("mMoist").value = item.moist || "";
+    document.getElementById("mPrice").value = item.price || "";
+    document.getElementById("mBroken").checked = item.isBroken === "ใช่";
+    document.getElementById("mMolded").checked = item.isMolded === "ใช่";
+
+    const hasTruck = !!(item.truck && item.truck !== "-");
+    document.getElementById("enableTruck").checked = hasTruck;
+    document.getElementById("truckSection").style.display = hasTruck ? "block" : "none";
+    document.getElementById("mTruck").value = hasTruck ? item.truck : "";
+
+    const d = new Date((item.date || "").replace(" ", "T"));
+    document.getElementById("mDate").value = toLocalDatetimeInputValue(isNaN(d.getTime()) ? new Date() : d);
+
+    if (title) title.textContent = "✏️ แก้ไขรายการ";
+    if (saveBtn) saveBtn.innerHTML = "💾 บันทึกการแก้ไข";
+  } else {
+    editingIndex = null;
+    document.getElementById("mDate").value = toLocalDatetimeInputValue(new Date());
+    if (title) title.textContent = "📝 บันทึกข้อมูลใหม่";
+    if (saveBtn) saveBtn.innerHTML = "💾 บันทึกข้อมูล";
+  }
+
   document.getElementById("entryModal").style.display = "block";
 }
+
+// ปุ่ม ✏️ ในตารางรายการ — เปิดฟอร์มเดิมพร้อมข้อมูลของแถวนั้นให้แก้ไข
+function editItem(index) {
+  openEntryModal(index);
+}
+
 function closeEntryModal() {
   document.getElementById("entryModal").style.display = "none";
   document.getElementById("enableTruck").checked = false;
@@ -769,6 +797,8 @@ function closeEntryModal() {
   document.getElementById("mWeight").value = "";
   document.getElementById("mMoist").value = "";
   document.getElementById("mPrice").value = "";
+  document.getElementById("mDate").value = "";
+  editingIndex = null;
 }
 window.onclick = function (event) {
   const modal = document.getElementById("entryModal");
