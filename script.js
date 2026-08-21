@@ -213,6 +213,11 @@ function updateDoughnutChart() {
 }
 
 // 📄 ระบบรายงาน (Report)
+
+// เก็บช่วงวันที่แบบ "กำหนดเอง" (Date object) — มีค่าเฉพาะตอนกดปุ่ม "ใช้ช่วงนี้" แล้วเท่านั้น
+let customRangeStart = null;
+let customRangeEnd = null;
+
 function setReportFilter(days) {
   currentReportFilter = days;
   document.querySelectorAll("#filterButtonGroup button").forEach((btn) => {
@@ -224,7 +229,77 @@ function setReportFilter(days) {
       btn.style.color = "#666";
     }
   });
+
+  const customRow = document.getElementById("customRangeRow");
+  if (customRow) customRow.style.display = days === "custom" ? "flex" : "none";
+
+  // ออกจากโหมด "กำหนดเอง" ให้ล้างช่วงวันที่เดิมทิ้ง กันเผลอเอาช่วงเก่ามาใช้ต่อตอนกลับมากดใหม่
+  if (days !== "custom") {
+    customRangeStart = null;
+    customRangeEnd = null;
+  }
+
   renderDocumentList();
+}
+
+// กดปุ่ม "ใช้ช่วงนี้" หลังเลือกวันที่เริ่มต้น-สิ้นสุดในโหมด "กำหนดเอง"
+function applyCustomRange() {
+  const startVal = document.getElementById("mReportStartDate").value;
+  const endVal = document.getElementById("mReportEndDate").value;
+
+  if (!startVal || !endVal) {
+    Swal.fire("กรุณาเลือกวันที่", "เลือกทั้งวันที่เริ่มต้นและสิ้นสุดก่อนกดใช้ช่วงนี้", "warning");
+    return;
+  }
+
+  const start = new Date(startVal + "T00:00:00");
+  const end = new Date(endVal + "T23:59:59");
+
+  if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+    Swal.fire("ช่วงวันที่ไม่ถูกต้อง", "วันที่เริ่มต้นต้องมาก่อน (หรือวันเดียวกับ) วันที่สิ้นสุด", "warning");
+    return;
+  }
+
+  customRangeStart = start;
+  customRangeEnd = end;
+  renderDocumentList();
+}
+
+// ตรวจว่าวันที่ d อยู่ในช่วงตัวกรองรายงานปัจจุบันหรือไม่ (ใช้ร่วมกันทั้งตารางรายการ/Ranking/รายงานภาพรวม
+// เพื่อไม่ให้ตรรกะการกรองช่วงเวลาซ้ำซ้อนกระจายอยู่หลายจุดเหมือนโค้ดเดิม)
+function isDateInReportRange(d) {
+  if (currentReportFilter === "all") return true;
+  if (isNaN(d.getTime())) return false;
+
+  if (currentReportFilter === "custom") {
+    // ยังไม่ได้กด "ใช้ช่วงนี้" ให้ผ่านหมดไปก่อน (กันตารางว่างเปล่าตั้งแต่ตอนเพิ่งกดปุ่ม "กำหนดเอง")
+    if (!customRangeStart || !customRangeEnd) return true;
+    return d >= customRangeStart && d <= customRangeEnd;
+  }
+
+  const now = new Date();
+
+  // "1" = วันนี้ตามปฏิทินจริง (00:00-23:59 ของวันนี้) ไม่ใช่ย้อนหลัง 24 ชม.แบบหมุนตามเวลาปัจจุบัน
+  // เพราะลูกค้าอยากดูยอดของ "วันนี้" ล้วนๆ เช่น เปิดดูตอนเช้าไม่อยากให้ดึงยอดของเมื่อวานตอนดึกติดมาด้วย
+  if (currentReportFilter === "1") {
+    return d.toDateString() === now.toDateString();
+  }
+
+  const diff = Math.ceil(Math.abs(now - d) / (1000 * 60 * 60 * 24));
+  return diff <= parseInt(currentReportFilter);
+}
+
+// ข้อความหัวข้อช่วงเวลาสำหรับแสดงในรายงาน (Ranking / สรุปภาพรวม)
+function getReportFilterLabel() {
+  const labels = { "1": "วันนี้", "3": "3 วันล่าสุด", "7": "สัปดาห์นี้", "30": "เดือนนี้", "365": "ปีนี้", all: "ทั้งหมด" };
+  if (currentReportFilter === "custom") {
+    if (customRangeStart && customRangeEnd) {
+      const opt = { day: "2-digit", month: "2-digit", year: "2-digit" };
+      return `${customRangeStart.toLocaleDateString("th-TH", opt)} - ${customRangeEnd.toLocaleDateString("th-TH", opt)}`;
+    }
+    return "กำหนดเอง";
+  }
+  return labels[currentReportFilter] || "ทั้งหมด";
 }
 
 let currentDisplayLimit = 50; // กำหนดตัวแปรสำหรับจำกัดแถว (แบ่งหน้า)
@@ -257,7 +332,6 @@ function renderDocumentList() {
     .getElementById("searchCustomer")
     .value.toLowerCase()
     .trim();
-  const now = new Date();
   const tbody = document.getElementById("documentListBody");
 
   // 1. กรองและจำ Index ดั้งเดิม (แก้ปัญหา O(N^2) ไม่ให้ค้าง)
@@ -273,8 +347,7 @@ function renderDocumentList() {
 
       let d = new Date((i.date || "").replace(" ", "T"));
       if (isNaN(d)) return matchesSearch;
-      const diff = Math.ceil(Math.abs(now - d) / (1000 * 60 * 60 * 24));
-      return matchesSearch && diff <= parseInt(currentReportFilter);
+      return matchesSearch && isDateInReportRange(d);
     });
 
   // 2. จัดการกล่องสรุปข้อมูล (Summary Card)
@@ -568,30 +641,15 @@ function copySummaryText() {
     }
   });
 
-  // 4. คำนวณ Ranking ตามช่วงเวลาที่เลือก (Filter)
+  // 4. คำนวณ Ranking ตามช่วงเวลาที่เลือก (Filter) — ใช้ isDateInReportRange()/getReportFilterLabel()
+  // ร่วมกับตารางรายการและรายงานภาพรวม เพื่อไม่ให้ตรรกะช่วงเวลากระจายซ้ำหลายจุดเหมือนเดิม
+  // (รองรับโหมด "กำหนดเอง" ไปในตัวโดยอัตโนมัติ)
   let visitCounts = {};
-  let filterLabel = ""; // สำหรับแสดงหัวข้อใน Line
+  const filterLabel = getReportFilterLabel();
 
-  // กรองข้อมูลทั้งหมดตาม Filter ก่อนนำมาจัดอันดับ
   const rankedData = db.filter((i) => {
-    if (currentReportFilter === "all") {
-      filterLabel = "ทั้งหมด";
-      return true;
-    }
-
-    let d = new Date((i.date || "").replace(" ", "T"));
-    if (isNaN(d)) return false;
-
-    const diff = Math.ceil(Math.abs(now - d) / (1000 * 60 * 60 * 24));
-    const limit = parseInt(currentReportFilter);
-
-    if (limit === 1) filterLabel = "วันนี้";
-    else if (limit === 3) filterLabel = "3 วันล่าสุด";
-    else if (limit === 7) filterLabel = "สัปดาห์นี้";
-    else if (limit === 30) filterLabel = "เดือนนี้";
-    else if (limit === 365) filterLabel = "ปีนี้";
-
-    return diff <= limit;
+    const d = new Date((i.date || "").replace(" ", "T"));
+    return isDateInReportRange(d);
   });
 
   // นับจำนวนพ่วงในกลุ่มข้อมูลที่กรองแล้ว
@@ -642,6 +700,144 @@ ${rankTxt}
       showConfirmButton: false,
     });
   });
+}
+
+// ---------------------------------------------------
+// 📊 รายงานสรุปภาพรวม (ไม่ผูกกับลูกค้าคนใดคนหนึ่ง) — ใช้ช่วงเวลาเดียวกับปุ่มตัวกรองด้านบน
+// (1 วัน/3 วัน/7 วัน/เดือน/ปี/ทั้งหมด/กำหนดเอง) แล้วสรุปเป็นข้อความล้วนให้กดคัดลอกไปวางใน LINE เอง
+// เหตุผลที่ทำแบบข้อความ+ปุ่มคัดลอก แทนที่จะส่งอัตโนมัติ: รูปภาพที่แชร์ผ่าน LINE จะหมดอายุ/โดนบีบอัดเมื่อเวลาผ่านไป
+// ส่วนการส่งอัตโนมัติทำได้จริงผ่าน LINE Messaging API เท่านั้น (LINE Notify ปิดให้บริการไปแล้วตั้งแต่ปี 2025)
+// ซึ่งต้องตั้งค่า LINE Official Account + Token เพิ่ม จึงเลือกใช้วิธีคัดลอก-วางเองตามที่ต้องการก่อน
+// ---------------------------------------------------
+function generateOverviewReport() {
+  const filtered = db.filter((i) => {
+    const d = new Date((i.date || "").replace(" ", "T"));
+    return isDateInReportRange(d);
+  });
+
+  if (filtered.length === 0) {
+    Swal.fire("ไม่พบข้อมูล", "ไม่มีรายการในช่วงเวลาที่เลือก", "info");
+    return;
+  }
+
+  const filterLabel = getReportFilterLabel();
+
+  // ยอดรวม
+  const count = filtered.length;
+  const totalWeight = filtered.reduce((sum, i) => sum + parseFloat(i.weight || 0), 0);
+  const totalAmount = filtered.reduce(
+    (sum, i) => sum + parseFloat(i.weight || 0) * parseFloat(i.price || 0),
+    0,
+  );
+  const avgMoist =
+    filtered.reduce((sum, i) => sum + parseFloat(i.moist || 0), 0) / count;
+
+  // แยกตามช่องทาง
+  const channels = {
+    หน้าบ้าน: { count: 0, weight: 0 },
+    ปั้ว: { count: 0, weight: 0 },
+    โอนตั๋ว: { count: 0, weight: 0 },
+  };
+  filtered.forEach((i) => {
+    const ch = channels[i.channel] ? i.channel : "หน้าบ้าน"; // กันช่องทางที่ไม่รู้จัก ไม่ให้ตกหล่นไปจากผลรวม
+    channels[ch].count += 1;
+    channels[ch].weight += parseFloat(i.weight || 0);
+  });
+
+  // แยกตามคุณภาพ (น้ำหนัก + สัดส่วน % จากน้ำหนักรวม)
+  let freshWt = 0,
+    dryWt = 0,
+    brokenWt = 0,
+    moldedWt = 0;
+  filtered.forEach((i) => {
+    const w = parseFloat(i.weight || 0);
+    const m = parseFloat(i.moist || 0);
+    if (m > 17.5) freshWt += w;
+    else dryWt += w;
+    if (i.isBroken === "ใช่") brokenWt += w;
+    if (i.isMolded === "ใช่") moldedWt += w;
+  });
+  const pct = (v) => (totalWeight > 0 ? ((v / totalWeight) * 100).toFixed(1) : "0.0");
+  // ใส่ลูกน้ำคั่นหลักพัน (เช่น 1,000 / 30,000.00) ให้ตัวเลขในรายงานอ่านง่ายขึ้น
+  const fmt = (v, decimals = 2) =>
+    Number(v).toLocaleString("th-TH", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+
+  // Top 5 ลูกค้าที่ส่งพ่วงเยอะสุดในช่วงนี้
+  const visitCounts = {};
+  filtered.forEach((i) => {
+    if (i.customer) visitCounts[i.customer] = (visitCounts[i.customer] || 0) + 1;
+  });
+  const rank = Object.entries(visitCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  const rankTxt = rank.length
+    ? rank.map((r, idx) => ` ${idx + 1}. ${r[0]} (${r[1]} พ่วง)`).join("\n")
+    : " - ไม่มีข้อมูล";
+
+  const now = new Date();
+  const dateStr =
+    now.toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "2-digit" }) +
+    " " +
+    now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+
+  const txt = `📌 *สรุปรายงานภาพรวม GoldKernel*
+ช่วงเวลา: ${filterLabel}
+ออกรายงานเมื่อ: ${dateStr} น.
+--------------------------
+🚛 จำนวนรับซื้อ: ${count.toLocaleString("th-TH")} พ่วง
+⚖️ น้ำหนักรวม: ${fmt(totalWeight)} ตัน
+💰 ยอดเงินรวม: ฿${fmt(totalAmount, 0)}
+💧 ความชื้นเฉลี่ย: ${avgMoist.toFixed(1)}%
+--------------------------
+📥 แยกตามช่องทาง:
+ 🏠 หน้าบ้าน: ${channels["หน้าบ้าน"].count.toLocaleString("th-TH")} พ่วง (${fmt(channels["หน้าบ้าน"].weight)} ตัน)
+ 🤝 ปั้ว: ${channels["ปั้ว"].count.toLocaleString("th-TH")} พ่วง (${fmt(channels["ปั้ว"].weight)} ตัน)
+ 🎫 โอนตั๋ว: ${channels["โอนตั๋ว"].count.toLocaleString("th-TH")} พ่วง (${fmt(channels["โอนตั๋ว"].weight)} ตัน)
+--------------------------
+🌽 แยกตามคุณภาพ (น้ำหนัก / สัดส่วน):
+ สด (>17.5%): ${fmt(freshWt)} ตัน (${pct(freshWt)}%)
+ แห้ง (≤17.5%): ${fmt(dryWt)} ตัน (${pct(dryWt)}%)
+ เม็ดแตก: ${fmt(brokenWt)} ตัน (${pct(brokenWt)}%)
+ เม็ดรา: ${fmt(moldedWt)} ตัน (${pct(moldedWt)}%)
+--------------------------
+🏆 Top 5 ลูกค้าส่งพ่วงเยอะสุด:
+${rankTxt}
+--------------------------
+✅ ข้อมูลถูกต้องแม่นยำ`;
+
+  showOverviewReportModal(txt);
+}
+
+function showOverviewReportModal(txt) {
+  document.getElementById("overviewReportText").value = txt;
+  document.getElementById("overviewReportModal").style.display = "block";
+}
+
+function closeOverviewReportModal() {
+  document.getElementById("overviewReportModal").style.display = "none";
+}
+
+function copyOverviewReport() {
+  const textarea = document.getElementById("overviewReportText");
+  const txt = textarea.value;
+
+  navigator.clipboard
+    .writeText(txt)
+    .then(() => {
+      Swal.fire({
+        title: "คัดลอกสำเร็จ!",
+        text: "วางในไลน์ได้เลยครับ",
+        icon: "success",
+        timer: 1500,
+        showConfirmButton: false,
+      });
+    })
+    .catch(() => {
+      // เผื่อเบราว์เซอร์/บริบท (เช่น ไม่ใช่ HTTPS) ไม่รองรับ clipboard API — ให้เลือกข้อความในกล่องไว้ให้เลย ผู้ใช้กด Ctrl+C เองได้
+      textarea.focus();
+      textarea.select();
+      Swal.fire("คัดลอกอัตโนมัติไม่ได้", "เลือกข้อความในกล่องไว้ให้แล้ว กด Ctrl+C (หรือแตะค้างแล้วเลือกคัดลอก) ได้เลย", "warning");
+    });
 }
 
 // 🖨️ ระบบ Print เอกสาร (html2canvas เดิม)
@@ -804,5 +1000,9 @@ window.onclick = function (event) {
   const modal = document.getElementById("entryModal");
   if (event.target === modal) {
     closeEntryModal();
+  }
+  const overviewModal = document.getElementById("overviewReportModal");
+  if (event.target === overviewModal) {
+    closeOverviewReportModal();
   }
 };

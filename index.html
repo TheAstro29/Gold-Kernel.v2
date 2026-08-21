@@ -177,7 +177,7 @@
               font-size: 11px;
             "
           >
-            1 วัน
+            วันนี้
           </button>
           <button
             onclick="setReportFilter('3')"
@@ -245,7 +245,54 @@
           >
             ทั้งหมด
           </button>
+          <button
+            onclick="setReportFilter('custom')"
+            style="
+              flex: 1;
+              padding: 8px;
+              border-radius: 8px;
+              border: 1px solid #ddd;
+              background: white;
+              font-size: 11px;
+              white-space: nowrap;
+            "
+          >
+            📅 กำหนดเอง
+          </button>
         </div>
+
+        <!-- แถบเลือกช่วงวันที่เอง — โผล่มาเฉพาะตอนกดปุ่ม "กำหนดเอง" ด้านบน -->
+        <div
+          id="customRangeRow"
+          style="display: none; gap: 8px; margin-bottom: 15px; align-items: center; background: white; padding: 10px; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"
+        >
+          <input type="date" id="mReportStartDate" class="search-input" style="margin-bottom: 0;" />
+          <span style="color: #a0aec0; font-size: 12px;">ถึง</span>
+          <input type="date" id="mReportEndDate" class="search-input" style="margin-bottom: 0;" />
+          <button
+            onclick="applyCustomRange()"
+            style="
+              background: var(--blue);
+              color: white;
+              border: none;
+              padding: 10px 16px;
+              border-radius: 10px;
+              font-weight: bold;
+              white-space: nowrap;
+              font-size: 12px;
+            "
+          >
+            ใช้ช่วงนี้
+          </button>
+        </div>
+
+        <button
+          onclick="generateOverviewReport()"
+          class="btn-3d btn-3d-blue"
+          style="width: 100%; padding: 12px; margin-bottom: 15px; font-size: 14px;"
+        >
+          📊 สรุปรายงานภาพรวม (คัดลอกวางไลน์)
+        </button>
 
         <div style="display: flex; gap: 8px; margin-bottom: 15px">
           <input
@@ -529,6 +576,53 @@
           "
         >
           ยกเลิก
+        </button>
+      </div>
+    </div>
+
+    <!-- โมดัลรายงานสรุปภาพรวม (ข้อความล้วน สำหรับคัดลอกไปวางใน LINE) -->
+    <div id="overviewReportModal" class="modal">
+      <div class="modal-content">
+        <h3 style="margin-top: 0" id="overviewReportTitle">📊 สรุปรายงานภาพรวม</h3>
+        <textarea
+          id="overviewReportText"
+          readonly
+          style="
+            width: 100%;
+            min-height: 300px;
+            padding: 12px;
+            border-radius: 10px;
+            border: 1px solid #dfe6e9;
+            font-family: 'Sarabun', sans-serif;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            color: #2d3436;
+            background: #fafcff;
+          "
+        ></textarea>
+        <button
+          onclick="copyOverviewReport()"
+          class="btn-3d btn-3d-blue"
+          style="margin-top: 15px;"
+        >
+          📋 คัดลอกรายงาน
+        </button>
+        <button
+          onclick="closeOverviewReportModal()"
+          class="btn-3d"
+          style="
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            background: none;
+            color: #999;
+            box-shadow: none;
+            cursor: pointer;
+          "
+        >
+          ปิด
         </button>
       </div>
     </div>
