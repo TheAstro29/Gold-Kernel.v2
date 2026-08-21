@@ -729,35 +729,16 @@ function generateOverviewReport() {
     (sum, i) => sum + parseFloat(i.weight || 0) * parseFloat(i.price || 0),
     0,
   );
-  const avgMoist =
-    filtered.reduce((sum, i) => sum + parseFloat(i.moist || 0), 0) / count;
 
-  // แยกตามช่องทาง
-  const channels = {
-    หน้าบ้าน: { count: 0, weight: 0 },
-    ปั้ว: { count: 0, weight: 0 },
-    โอนตั๋ว: { count: 0, weight: 0 },
-  };
-  filtered.forEach((i) => {
-    const ch = channels[i.channel] ? i.channel : "หน้าบ้าน"; // กันช่องทางที่ไม่รู้จัก ไม่ให้ตกหล่นไปจากผลรวม
-    channels[ch].count += 1;
-    channels[ch].weight += parseFloat(i.weight || 0);
-  });
-
-  // แยกตามคุณภาพ (น้ำหนัก + สัดส่วน % จากน้ำหนักรวม)
+  // แยกตามคุณภาพ (เฉพาะน้ำหนัก สด/แห้ง — ตามที่ลูกค้าใช้งานจริงแค่นี้ ตัดช่องทาง/เม็ดแตก/เม็ดรา/% ออก)
   let freshWt = 0,
-    dryWt = 0,
-    brokenWt = 0,
-    moldedWt = 0;
+    dryWt = 0;
   filtered.forEach((i) => {
     const w = parseFloat(i.weight || 0);
     const m = parseFloat(i.moist || 0);
     if (m > 17.5) freshWt += w;
     else dryWt += w;
-    if (i.isBroken === "ใช่") brokenWt += w;
-    if (i.isMolded === "ใช่") moldedWt += w;
   });
-  const pct = (v) => (totalWeight > 0 ? ((v / totalWeight) * 100).toFixed(1) : "0.0");
   // ใส่ลูกน้ำคั่นหลักพัน (เช่น 1,000 / 30,000.00) ให้ตัวเลขในรายงานอ่านง่ายขึ้น
   const fmt = (v, decimals = 2) =>
     Number(v).toLocaleString("th-TH", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -774,36 +755,19 @@ function generateOverviewReport() {
     ? rank.map((r, idx) => ` ${idx + 1}. ${r[0]} (${r[1]} พ่วง)`).join("\n")
     : " - ไม่มีข้อมูล";
 
-  const now = new Date();
-  const dateStr =
-    now.toLocaleDateString("th-TH", { day: "2-digit", month: "2-digit", year: "2-digit" }) +
-    " " +
-    now.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
-
   const txt = `📌 *สรุปรายงานภาพรวม GoldKernel*
 ช่วงเวลา: ${filterLabel}
-ออกรายงานเมื่อ: ${dateStr} น.
---------------------------
-🚛 จำนวนรับซื้อ: ${count.toLocaleString("th-TH")} พ่วง
-⚖️ น้ำหนักรวม: ${fmt(totalWeight)} ตัน
-💰 ยอดเงินรวม: ฿${fmt(totalAmount, 0)}
-💧 ความชื้นเฉลี่ย: ${avgMoist.toFixed(1)}%
---------------------------
-📥 แยกตามช่องทาง:
- 🏠 หน้าบ้าน: ${channels["หน้าบ้าน"].count.toLocaleString("th-TH")} พ่วง (${fmt(channels["หน้าบ้าน"].weight)} ตัน)
- 🤝 ปั้ว: ${channels["ปั้ว"].count.toLocaleString("th-TH")} พ่วง (${fmt(channels["ปั้ว"].weight)} ตัน)
- 🎫 โอนตั๋ว: ${channels["โอนตั๋ว"].count.toLocaleString("th-TH")} พ่วง (${fmt(channels["โอนตั๋ว"].weight)} ตัน)
---------------------------
-🌽 แยกตามคุณภาพ (น้ำหนัก / สัดส่วน):
- สด (>17.5%): ${fmt(freshWt)} ตัน (${pct(freshWt)}%)
- แห้ง (≤17.5%): ${fmt(dryWt)} ตัน (${pct(dryWt)}%)
- เม็ดแตก: ${fmt(brokenWt)} ตัน (${pct(brokenWt)}%)
- เม็ดรา: ${fmt(moldedWt)} ตัน (${pct(moldedWt)}%)
---------------------------
-🏆 Top 5 ลูกค้าส่งพ่วงเยอะสุด:
-${rankTxt}
---------------------------
-✅ ข้อมูลถูกต้องแม่นยำ`;
+
+จำนวนรับซื้อ: ${count.toLocaleString("th-TH")} พ่วง
+น้ำหนักรวม: ${fmt(totalWeight)} ตัน
+ยอดเงินรวม: ฿${fmt(totalAmount, 0)}
+
+ แยกตามคุณภาพ (น้ำหนัก):
+ สด (>17.5%): ${fmt(freshWt)} ตัน
+ แห้ง (≤17.5%): ${fmt(dryWt)} ตัน
+
+ Top 5 ลูกค้าส่งพ่วงเยอะสุด:
+${rankTxt}`;
 
   showOverviewReportModal(txt);
 }
