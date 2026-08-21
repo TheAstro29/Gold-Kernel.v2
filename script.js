@@ -7,6 +7,7 @@ let currentReportFilter = "all";
 window.onload = async () => {
   await loadData();
   initCharts();
+  setupInstallPrompt();
   document.getElementById("splash").style.opacity = "0";
   setTimeout(() => {
     document.getElementById("splash").style.display = "none";
@@ -14,6 +15,85 @@ window.onload = async () => {
     updateDashboard();
   }, 800);
 };
+
+// ============================================================
+// 📲 ติดตั้งแอปลงหน้าจอโฮม (Add to Home Screen) — รองรับทั้ง Android/Chrome และ iOS/Safari
+// ============================================================
+let deferredInstallPrompt = null;
+
+function isIos() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1); // iPadOS ใหม่ๆ ปลอมตัวเป็น Mac
+}
+
+function isStandaloneDisplay() {
+  return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+}
+
+function setupInstallPrompt() {
+  const btn = document.getElementById("installAppBtn");
+  const btnText = document.getElementById("installAppBtnText");
+  if (!btn) return;
+
+  // ถ้าเปิดแอปในโหมด standalone อยู่แล้ว (ติดตั้งไปแล้ว) ไม่ต้องโชว์ปุ่ม
+  if (isStandaloneDisplay()) return;
+
+  if (isIos()) {
+    // iOS Safari ไม่รองรับ beforeinstallprompt เลย ต้องแนะนำขั้นตอนด้วยมือ (Share → Add to Home Screen)
+    btn.style.display = "";
+    if (btnText) btnText.textContent = "วิธีติดตั้ง (iPhone/iPad)";
+    return;
+  }
+
+  // Android/Chrome/Edge ฯลฯ: รอ event นี้ก่อนถึงจะโชว์ปุ่ม (เบราว์เซอร์เป็นคนตัดสินใจว่าติดตั้งได้เมื่อไหร่)
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    btn.style.display = "";
+    if (btnText) btnText.textContent = "ติดตั้งแอป";
+  });
+
+  window.addEventListener("appinstalled", () => {
+    btn.style.display = "none";
+    deferredInstallPrompt = null;
+  });
+}
+
+async function handleInstallClick() {
+  if (isIos()) {
+    await Swal.fire({
+      title: "วิธีติดตั้งลงหน้าจอโฮม (iPhone/iPad)",
+      html:
+        '<div style="text-align:left; font-size:14px; line-height:1.8;">' +
+        "1. แตะปุ่ม <b>แชร์</b> (ไอคอนสี่เหลี่ยมมีลูกศรชี้ขึ้น) แถบด้านล่างของ Safari<br>" +
+        '2. เลื่อนหาแล้วแตะ <b>"เพิ่มไปที่หน้าจอโฮม"</b> (Add to Home Screen)<br>' +
+        '3. แตะ <b>"เพิ่ม"</b> ที่มุมขวาบน' +
+        "</div>",
+      confirmButtonText: "เข้าใจแล้ว",
+    });
+    return;
+  }
+  if (!deferredInstallPrompt) {
+    Swal.fire(
+      "ยังติดตั้งไม่ได้ตอนนี้",
+      'เบราว์เซอร์นี้ยังไม่พร้อมให้ติดตั้ง ลองรีเฟรชหน้าใหม่แล้วลองอีกครั้ง หรือใช้เมนู "เพิ่มไปยังหน้าจอโฮม" ของเบราว์เซอร์เอง',
+      "info",
+    );
+    return;
+  }
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  document.getElementById("installAppBtn").style.display = "none";
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {
+      /* ไม่ critical — แค่ทำให้ติดตั้งเป็น PWA ได้ ถ้าลงทะเบียนไม่สำเร็จก็แค่ไม่มีปุ่มติดตั้ง แอปยังใช้งานปกติ */
+    });
+  });
+}
 
 async function loadData() {
   try {

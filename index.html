@@ -7,7 +7,14 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="img/icon-192.png">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+    <meta name="theme-color" content="#ff6b6b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="GoldKernel">
+    <meta name="mobile-web-app-capable" content="yes">
     <link
       href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600&display=swap"
       rel="stylesheet"
@@ -61,18 +68,38 @@
             GoldKernel
           </div>
         </div>
-        <div
-          style="
-            font-size: 12px;
-            color: #a0aec0;
-            background: #f1f5f9;
-            padding: 4px 10px;
-            border-radius: 20px;
-            cursor: pointer;
-          "
-          onclick="location.reload()"
-        >
-          🔄 รีเฟรช
+        <div style="display: flex; align-items: center; gap: 8px">
+          <!-- ปุ่มติดตั้งแอปลงหน้าจอมือถือ (Add to Home Screen) — ซ่อนไว้ก่อน จะโผล่มาเองด้วย JS
+               เมื่อเบราว์เซอร์รองรับ (Android/Chrome) หรือเปลี่ยนข้อความเป็นคำแนะนำเองสำหรับ iOS -->
+          <div
+            id="installAppBtn"
+            style="
+              display: none;
+              font-size: 12px;
+              color: white;
+              background: var(--pink);
+              padding: 4px 10px;
+              border-radius: 20px;
+              cursor: pointer;
+              white-space: nowrap;
+            "
+            onclick="handleInstallClick()"
+          >
+            📲 <span id="installAppBtnText">ติดตั้งแอป</span>
+          </div>
+          <div
+            style="
+              font-size: 12px;
+              color: #a0aec0;
+              background: #f1f5f9;
+              padding: 4px 10px;
+              border-radius: 20px;
+              cursor: pointer;
+            "
+            onclick="location.reload()"
+          >
+            🔄 รีเฟรช
+          </div>
         </div>
       </header>
 
@@ -164,17 +191,26 @@
       <div id="report-view" style="display: none; padding: 15px">
         <div
           id="filterButtonGroup"
-          style="display: flex; gap: 5px; margin-bottom: 15px; flex-wrap: wrap"
+          style="
+            display: flex;
+            gap: 6px;
+            margin-bottom: 15px;
+            flex-wrap: nowrap;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 2px 2px 6px;
+          "
         >
           <button
             onclick="setReportFilter('1')"
             style="
-              flex: 1;
-              padding: 8px;
+              flex: 0 0 auto;
+              padding: 8px 14px;
               border-radius: 8px;
               border: 1px solid #ddd;
               background: white;
               font-size: 11px;
+              white-space: nowrap;
             "
           >
             วันนี้
@@ -182,12 +218,13 @@
           <button
             onclick="setReportFilter('3')"
             style="
-              flex: 1;
-              padding: 8px;
+              flex: 0 0 auto;
+              padding: 8px 14px;
               border-radius: 8px;
               border: 1px solid #ddd;
               background: white;
               font-size: 11px;
+              white-space: nowrap;
             "
           >
             3 วัน
@@ -195,12 +232,13 @@
           <button
             onclick="setReportFilter('7')"
             style="
-              flex: 1;
-              padding: 8px;
+              flex: 0 0 auto;
+              padding: 8px 14px;
               border-radius: 8px;
               border: 1px solid #ddd;
               background: white;
               font-size: 11px;
+              white-space: nowrap;
             "
           >
             7 วัน
@@ -208,12 +246,13 @@
           <button
             onclick="setReportFilter('30')"
             style="
-              flex: 1;
-              padding: 8px;
+              flex: 0 0 auto;
+              padding: 8px 14px;
               border-radius: 8px;
               border: 1px solid #ddd;
               background: white;
               font-size: 11px;
+              white-space: nowrap;
             "
           >
             เดือน
@@ -221,12 +260,13 @@
           <button
             onclick="setReportFilter('365')"
             style="
-              flex: 1;
-              padding: 8px;
+              flex: 0 0 auto;
+              padding: 8px 14px;
               border-radius: 8px;
               border: 1px solid #ddd;
               background: white;
               font-size: 11px;
+              white-space: nowrap;
             "
           >
             ปี
@@ -234,13 +274,14 @@
           <button
             onclick="setReportFilter('all')"
             style="
-              flex: 1;
-              padding: 8px;
+              flex: 0 0 auto;
+              padding: 8px 14px;
               border-radius: 8px;
               border: 1px solid var(--pink);
               background: var(--pink);
               color: white;
               font-size: 11px;
+              white-space: nowrap;
             "
           >
             ทั้งหมด
@@ -248,8 +289,8 @@
           <button
             onclick="setReportFilter('custom')"
             style="
-              flex: 1;
-              padding: 8px;
+              flex: 0 0 auto;
+              padding: 8px 14px;
               border-radius: 8px;
               border: 1px solid #ddd;
               background: white;
