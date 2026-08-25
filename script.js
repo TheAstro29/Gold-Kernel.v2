@@ -13,8 +13,26 @@ window.onload = async () => {
     document.getElementById("splash").style.display = "none";
     document.getElementById("main-content").style.display = "block";
     updateDashboard();
+    // ตั้งจุดฐาน (root) ของประวัติเบราว์เซอร์ไว้ที่หน้า dashboard หลังโหลดแอปเสร็จ — กด back จากจุดนี้ = ออกจากแอปตามปกติ
+    try { history.replaceState({ __gknav: true, view: "dashboard" }, ""); } catch (e) {}
   }, 800);
 };
+
+// ============================================================
+// เชื่อมปุ่ม Back ของระบบ (มือถือ/เบราว์เซอร์) เข้ากับการสลับหน้า Dashboard/รายงาน
+// หลักการ: ทุกครั้งที่กด switchView() ให้บันทึกไว้ใน browser history (pushState) ด้วย
+// แล้วดักฟัง popstate (ตอนกด back) เพื่อสั่งกลับไปหน้าที่บันทึกไว้ แทนที่จะปิดแอปไปเลย
+// หมายเหตุ: รอบนี้ครอบคลุมเฉพาะหน้าหลัก (dashboard/report) ยังไม่รวมหน้าต่าง modal ย่อยๆ
+// ============================================================
+let _navRestoringGK = false;
+
+window.addEventListener("popstate", (e) => {
+  const s = e.state;
+  if (!s || !s.__gknav) return;
+  _navRestoringGK = true;
+  switchView(s.view || "dashboard", { fromPopstate: true });
+  _navRestoringGK = false;
+});
 
 // ============================================================
 // 📲 ติดตั้งแอปลงหน้าจอโฮม (Add to Home Screen) — รองรับทั้ง Android/Chrome และ iOS/Safari
@@ -961,7 +979,7 @@ function printDocument(index) {
 }
 
 // เมนู & หน้าต่าง
-function switchView(v) {
+function switchView(v, opts) {
   document.getElementById("dashboard-view").style.display =
     v === "dashboard" ? "block" : "none";
   document.getElementById("report-view").style.display =
@@ -973,6 +991,11 @@ function switchView(v) {
     .getElementById("nav-report")
     .classList.toggle("active", v === "report");
   if (v === "report") renderDocumentList();
+
+  // บันทึกลง browser history ทุกครั้งที่เปลี่ยนหน้า (ยกเว้นตอนที่กำลัง restore มาจากปุ่ม back เอง กันวนลูป)
+  if (!(opts && opts.fromPopstate) && !_navRestoringGK) {
+    try { history.pushState({ __gknav: true, view: v }, ""); } catch (e) {}
+  }
 }
 
 // เก็บ index ของรายการที่กำลังแก้ไขอยู่ (null = โหมดบันทึกรายการใหม่)
